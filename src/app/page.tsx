@@ -17,18 +17,22 @@ interface SubjectItem {
 interface PostData {
   id: string;
   description: string;
+  offered_description?: string;
+  contact_method?: 'telegram' | 'email';
   created_at: string;
   needed: SubjectItem | null;
   offered: SubjectItem | null;
   author: {
     id: string;
     full_name: string;
+    email?: string;
     telegram_handle: string;
     role: string;
+    major?: string;
+    study_year?: number;
   } | null;
 }
 
-// 4 палитры категорий из Figma
 const PALETTES: Record<Category, { bg: string; label: string; title: string; topic: string; dot: string }> = {
   'CS & Dev': {
     bg: '#D9E1F1',
@@ -66,13 +70,12 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | 'All'>('All');
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [activeTab] = useState<'feed' | 'search' | 'favorite' | 'profile'>('feed');
 
-  // Управление интерактивным ползунком
   const chipsContainerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  // 1. Загрузка данных из Supabase
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -82,10 +85,12 @@ export default function FeedPage() {
           .select(`
             id,
             description,
+            offered_description,
+            contact_method,
             created_at,
             needed:subjects!barter_posts_needed_subject_id_fkey(id, code, name, category, department),
             offered:subjects!barter_posts_offered_subject_id_fkey(id, code, name, category, department),
-            author:users!barter_posts_author_id_fkey(id, full_name, telegram_handle, role)
+            author:users!barter_posts_author_id_fkey(id, full_name, email, telegram_handle, role, major, study_year)
           `)
           .eq('status', 'active')
           .order('created_at', { ascending: false }),
@@ -99,7 +104,7 @@ export default function FeedPage() {
       if (postsRes.data) setPosts(postsRes.data as unknown as PostData[]);
       if (subjectsRes.data) setSubjects(subjectsRes.data as unknown as SubjectItem[]);
     } catch (err) {
-      console.error('Ошибка получения данных из Supabase:', err);
+      console.error('Error fetching data from Supabase:', err);
     } finally {
       setLoading(false);
     }
@@ -109,7 +114,6 @@ export default function FeedPage() {
     fetchData();
   }, []);
 
-  // Синхронизация бегунка при скролле ленты предметов
   const handleChipsScroll = () => {
     if (!chipsContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = chipsContainerRef.current;
@@ -119,7 +123,6 @@ export default function FeedPage() {
     }
   };
 
-  // Клик по треку для прокрутки чипсов
   const handleSliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!trackRef.current || !chipsContainerRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
@@ -134,7 +137,6 @@ export default function FeedPage() {
     });
   };
 
-  // Лайк карточки
   const toggleLike = (postId: string) => {
     setLikedPosts((prev) => {
       const next = new Set(prev);
@@ -147,13 +149,11 @@ export default function FeedPage() {
     });
   };
 
-  // Фильтрация
   const filteredPosts = posts.filter((post) => {
     if (selectedSubjectId === 'All') return true;
     return post.needed?.id === selectedSubjectId || post.offered?.id === selectedSubjectId;
   });
 
-  // Инициалы реального автора
   const getInitials = (name?: string) => {
     if (!name) return 'ST';
     const parts = name.trim().split(' ');
@@ -164,7 +164,8 @@ export default function FeedPage() {
   return (
     <div 
       style={{ 
-        maxWidth: 402, 
+        maxWidth: 576, 
+        width: '100%',
         margin: '0 auto', 
         minHeight: '100vh', 
         backgroundColor: '#FBF9FF', 
@@ -173,7 +174,7 @@ export default function FeedPage() {
         fontFamily: "'Montserrat', sans-serif"
       }}
     >
-      {/* 1. Шапка */}
+      {/* 1. Header */}
       <header className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <img 
@@ -195,7 +196,7 @@ export default function FeedPage() {
         </div>
       </header>
 
-      {/* 2. Чипсы предметов */}
+      {/* 2. Subject chips */}
       <div 
         ref={chipsContainerRef}
         onScroll={handleChipsScroll}
@@ -248,7 +249,7 @@ export default function FeedPage() {
         })}
       </div>
 
-      {/* 3. Интерактивный ползунок */}
+      {/* 3. Slider */}
       <div className="px-4 py-1.5">
         <div 
           ref={trackRef}
@@ -266,7 +267,7 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* 4. Заголовок "Matches for you" */}
+      {/* 4. Section Title */}
       <div className="px-4 pt-3 pb-1">
         <h2 
           style={{ 
@@ -281,44 +282,49 @@ export default function FeedPage() {
         </h2>
       </div>
 
-      {/* 5. Карточки бартера */}
-      <main className="p-4 space-y-4">
+      {/* 5. Barter cards */}
+      <main className="p-4 space-y-4 w-full">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-[#5A5472] gap-2">
             <Loader2 className="w-6 h-6 animate-spin text-[#AD46FF]" />
-            <span className="text-xs font-medium">Загрузка карточек из Supabase...</span>
+            <span className="text-xs font-medium">Loading barter offers...</span>
           </div>
         ) : filteredPosts.length === 0 ? (
           <div className="text-center py-16 text-[#5A5472] text-xs font-medium bg-white border border-[#ECE6F7] rounded-2xl p-6">
-            Предложений по выбранному предмету не найдено
+            No barter offers found for this subject
           </div>
         ) : (
           filteredPosts.map((post) => {
             const neededPal = post.needed ? PALETTES[post.needed.category] : PALETTES['Mathematics'];
             const offeredPal = post.offered ? PALETTES[post.offered.category] : PALETTES['CS & Dev'];
             
-            const authorName = post.author?.full_name || 'Студент AITU';
-            const authorDepartment = post.offered?.department || (post.author?.role === 'admin' ? 'Software Engineering, Admin' : 'Software Engineering, Year 1');
+            const authorName = post.author?.full_name || 'AITU Student';
+            const authorMajor = post.author?.major || 'Software Engineering';
+            const authorYear = post.author?.study_year ? `, Year ${post.author.study_year}` : ', Year 1';
+            const authorSubtitle = `${authorMajor}${authorYear}`;
+
             const authorHandle = post.author?.telegram_handle || 'dynam1ix';
+            const authorEmail = post.author?.email || 'student@astanait.edu.kz';
             const isLiked = likedPosts.has(post.id);
+            const isTelegram = post.contact_method === 'telegram';
 
             return (
               <div
                 key={post.id}
-                className="bg-white border border-[#ECE6F7] rounded-2xl p-4 shadow-sm space-y-2.5"
+                className="bg-white border border-[#ECE6F7] rounded-2xl p-4 shadow-sm space-y-2.5 w-full transition"
               >
-                {/* Аватарка, имя и лайк */}
+                {/* Author profile & Wishlist */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-[#F1E9FF] text-[#6D1FC4] text-xs font-semibold flex items-center justify-center shrink-0">
                       {getInitials(authorName)}
                     </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-[15px] font-semibold text-[#1B1530]">
+                    <div className="flex flex-col leading-tight min-w-0">
+                      <span className="text-[15px] font-semibold text-[#1B1530] truncate">
                         {authorName}
                       </span>
-                      <span className="text-[13px] font-medium text-[#5A5472] truncate max-w-[210px]">
-                        {authorDepartment}
+                      <span className="text-[13px] font-medium text-[#5A5472] truncate">
+                        {authorSubtitle}
                       </span>
                     </div>
                   </div>
@@ -326,7 +332,7 @@ export default function FeedPage() {
                   <button 
                     onClick={() => toggleLike(post.id)}
                     aria-label="Wishlist toggle"
-                    className="p-1 hover:scale-110 active:scale-95 transition cursor-pointer"
+                    className="p-1 hover:scale-110 active:scale-95 transition cursor-pointer shrink-0"
                   >
                     <img 
                       src={isLiked ? '/liked.svg' : '/like.svg'} 
@@ -336,12 +342,12 @@ export default function FeedPage() {
                   </button>
                 </div>
 
-                {/* Блок предметов с одиночной чистой иконкой exchangeicon.svg */}
-                <div className="relative flex flex-col gap-2">
+                {/* Subjects block with both descriptions */}
+                <div className="relative flex flex-col gap-2 w-full">
                   {/* NEEDS HELP */}
                   <div
                     style={{ backgroundColor: neededPal.bg }}
-                    className="rounded-xl p-3 flex flex-col min-h-[83px] justify-between"
+                    className="rounded-xl p-3 flex flex-col min-h-[83px] justify-between w-full"
                   >
                     <span
                       style={{ color: neededPal.label }}
@@ -351,22 +357,23 @@ export default function FeedPage() {
                     </span>
                     <span
                       style={{ color: neededPal.title }}
-                      className="text-[18px] font-semibold truncate leading-tight block"
+                      className="text-[18px] font-semibold truncate leading-tight block pr-8"
                     >
                       {post.needed?.name || 'Calculus I'}
                     </span>
+                    {/* Топики для помощи */}
                     <span
                       style={{ color: neededPal.topic }}
                       className="text-[12px] font-medium truncate block"
                     >
-                      {post.needed?.code || 'CAL 1'}
+                      {post.description || post.needed?.code || 'Details & topics'}
                     </span>
                   </div>
 
                   {/* CAN TEACH */}
                   <div
                     style={{ backgroundColor: offeredPal.bg }}
-                    className="rounded-xl p-3 flex flex-col min-h-[83px] justify-between"
+                    className="rounded-xl p-3 flex flex-col min-h-[83px] justify-between w-full"
                   >
                     <span
                       style={{ color: offeredPal.label }}
@@ -376,19 +383,20 @@ export default function FeedPage() {
                     </span>
                     <span
                       style={{ color: offeredPal.title }}
-                      className="text-[18px] font-semibold truncate leading-tight block"
+                      className="text-[18px] font-semibold truncate leading-tight block pr-8"
                     >
                       {post.offered?.name || 'Introduction to Programming 1'}
                     </span>
+                    {/* Топики, которым может обучить автор */}
                     <span
                       style={{ color: offeredPal.topic }}
                       className="text-[12px] font-medium truncate block"
                     >
-                      {post.offered?.code || 'ITP 1'}
+                      {post.offered_description || post.offered?.department || post.offered?.code || 'Topics & skills'}
                     </span>
                   </div>
 
-                  {/* Кнопка обмена: чистый вывод файла exchangeicon.svg без двойных рамок */}
+                  {/* Exchange icon */}
                   <div 
                     style={{
                       position: 'absolute',
@@ -410,42 +418,71 @@ export default function FeedPage() {
                   </div>
                 </div>
 
-                {/* Кнопка Message on Telegram */}
-                <a
-                  href={`https://t.me/${authorHandle}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 12,
-                    background: 'linear-gradient(90deg, #AD46FF 0%, #F6339A 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    color: '#FFFFFF',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: 15,
-                    boxShadow: '0 3px 12px rgba(173, 70, 255, 0.25)'
-                  }}
-                  className="hover:opacity-95 active:scale-[0.99] transition"
-                >
-                  <img 
-                    src="/telegram.svg" 
-                    alt="Telegram" 
-                    style={{ width: 22, height: 22 }} 
-                  />
-                  <span>Message on Telegram</span>
-                </a>
+                {/* Contact action button */}
+                {isTelegram ? (
+                  <a
+                    href={`https://t.me/${authorHandle}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      width: '100%',
+                      height: 48,
+                      borderRadius: 12,
+                      background: 'linear-gradient(90deg, #AD46FF 0%, #F6339A 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      color: '#FFFFFF',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                      fontSize: 15,
+                      boxShadow: '0 3px 12px rgba(173, 70, 255, 0.25)'
+                    }}
+                    className="hover:opacity-95 active:scale-[0.99] transition w-full"
+                  >
+                    <img 
+                      src="/telegram.svg" 
+                      alt="Telegram" 
+                      style={{ width: 22, height: 22 }} 
+                    />
+                    <span>Message on Telegram</span>
+                  </a>
+                ) : (
+                  <a
+                    href={`mailto:${authorEmail}?subject=${encodeURIComponent(`StudySwap: ${post.needed?.name || 'Academic Exchange'}`)}&body=${encodeURIComponent(`Hi ${authorName}! I saw your StudySwap offer for ${post.needed?.name || 'this subject'}. I would like to connect!`)}`}
+                    style={{
+                      width: '100%',
+                      height: 48,
+                      borderRadius: 12,
+                      background: 'linear-gradient(90deg, #AD46FF 0%, #F6339A 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      color: '#FFFFFF',
+                      textDecoration: 'none',
+                      fontWeight: 600,
+                      fontSize: 15,
+                      boxShadow: '0 3px 12px rgba(173, 70, 255, 0.25)'
+                    }}
+                    className="hover:opacity-95 active:scale-[0.99] transition w-full"
+                  >
+                    <img 
+                      src="/email.svg" 
+                      alt="Email" 
+                      style={{ width: 22, height: 22 }} 
+                    />
+                    <span>Send an Email</span>
+                  </a>
+                )}
               </div>
             );
           })
         )}
       </main>
 
-      {/* 6. Нижняя панель навигации (работает только Feed и кнопка +) */}
+      {/* 6. Navigation bar */}
       <nav 
         style={{
           position: 'fixed',
@@ -453,7 +490,7 @@ export default function FeedPage() {
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',
-          maxWidth: 402,
+          maxWidth: 576,
           height: 76,
           backgroundColor: '#FFFFFF',
           borderTop: '1px solid #ECE6F7',
@@ -461,15 +498,13 @@ export default function FeedPage() {
           alignItems: 'center',
           justifyContent: 'space-around',
           zIndex: 50,
-          padding: '0 8px'
+          padding: '0 12px'
         }}
       >
-        {/* 1. Feed — активная страница */}
         <div className="flex flex-col items-center gap-1 w-12 text-center select-none cursor-default">
           <img 
             src="/feedselected.svg" 
             onError={(e) => {
-              // фоллбэк, если файл назван homeselected.svg
               e.currentTarget.src = '/homeselected.svg';
             }}
             alt="Feed" 
@@ -488,15 +523,11 @@ export default function FeedPage() {
           </span>
         </div>
 
-        {/* 2. Search — заблокирована */}
-        <div 
-          className="flex flex-col items-center gap-1 w-12 text-center opacity-60 pointer-events-none select-none cursor-not-allowed"
-        >
+        <div className="flex flex-col items-center gap-1 w-12 text-center opacity-60 pointer-events-none select-none cursor-not-allowed">
           <img src="/search.svg" alt="Search" style={{ width: 22, height: 22 }} />
           <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5472' }}>Search</span>
         </div>
 
-        {/* 3. Центральная кнопка (+) — ЕДИНСТВЕННАЯ РАБОЧАЯ ССЫЛКА */}
         <div style={{ position: 'relative', width: 58, height: 50, display: 'flex', justifyContent: 'center' }}>
           <Link
             href="/create"
@@ -521,25 +552,16 @@ export default function FeedPage() {
           </Link>
         </div>
 
-        {/* 4. Favorite — заблокирована */}
-        <div 
-          className="flex flex-col items-center gap-1 w-12 text-center opacity-60 pointer-events-none select-none cursor-not-allowed"
-        >
+        <div className="flex flex-col items-center gap-1 w-12 text-center opacity-60 pointer-events-none select-none cursor-not-allowed">
           <img 
-            src="/favorite.svg" 
-            onError={(e) => {
-              e.currentTarget.src = '/like.svg';
-            }}
+            src={activeTab === 'favorite' ? '/likeselected.svg' : '/like.svg'} 
             alt="Favorite" 
             style={{ width: 22, height: 22 }} 
           />
           <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5472' }}>Favorite</span>
         </div>
 
-        {/* 5. Profile — заблокирована */}
-        <div 
-          className="flex flex-col items-center gap-1 w-12 text-center opacity-60 pointer-events-none select-none cursor-not-allowed"
-        >
+        <div className="flex flex-col items-center gap-1 w-12 text-center opacity-60 pointer-events-none select-none cursor-not-allowed">
           <img src="/profile.svg" alt="Profile" style={{ width: 22, height: 22 }} />
           <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5472' }}>Profile</span>
         </div>

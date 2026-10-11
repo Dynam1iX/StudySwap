@@ -4,6 +4,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'StudySwap — Academic Barter Platform',
   description: 'Peer-to-peer knowledge sharing for AITU students',
+  icons: {
+    icon: '/StudySwapLogo.svg',
+    shortcut: '/StudySwapLogo.svg',
+    apple: '/StudySwapLogo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -14,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/StudySwapLogo.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
