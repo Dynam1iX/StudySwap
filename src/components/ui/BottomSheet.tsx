@@ -217,7 +217,12 @@ export function BottomSheet({ open, onClose, labelledBy, header, footer, childre
           {header}
         </div>
 
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/*
+          flex-auto, not flex-1: the desktop modal is as tall as its content (h-fit), and
+          Safari sizes a 0% flex-basis in such a box to nothing (only the title showed).
+          With auto it starts at the content height and still shrinks to scroll (min-h-0).
+        */}
+        <div ref={scrollRef} className="min-h-0 flex-auto overflow-y-auto overscroll-contain">
           {children}
           {/* Fades the text out above the actions while there is more to scroll (not in the short desktop menu) */}
           {!asMenu && (
