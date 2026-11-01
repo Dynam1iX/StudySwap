@@ -29,6 +29,7 @@ import {
   type ProfileCard,
   type ProfileData,
 } from '@/lib/profile';
+import { amIAdmin } from '@/lib/admin';
 import { signOut } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/useIsDesktop';
 import { messages, useT } from '@/i18n';
@@ -80,6 +81,18 @@ export default function ProfilePage() {
     // Also runs again when the page comes back into view (Next keeps it alive while hidden).
     void load();
   }, [load]);
+
+  /** Administrators see an "Admin panel" row in Settings (the database decides who is one). */
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void amIAdmin().then((admin) => {
+      if (!cancelled) setIsAdmin(admin);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const avatar = useAvatarEditor(state.status === 'ready' ? state.data.user : null, {
     notify: showToast,
@@ -256,7 +269,7 @@ export default function ProfilePage() {
 
             <section style={{ animationDelay: '350ms' }} className="flex animate-rise flex-col gap-4 motion-reduce:animate-none">
               <SectionTitle>{t.profile.settings}</SectionTitle>
-              <SettingsPanel onOpenPrivacy={() => setPrivacyOpen(true)} />
+              <SettingsPanel onOpenPrivacy={() => setPrivacyOpen(true)} showAdmin={isAdmin} />
             </section>
 
             <button

@@ -33,6 +33,7 @@ src/
     c/[slug]/             /c/<subjects>-<code>  A card's own link: opens the Feed with its details; opengraph-image draws the card for chat previews
     search/               /search   Search: categories, filters, recent searches, results
     favorites/            /favorites Liked cards, with Undo
+    admin/                /admin    Administrators only: statistics (End-term analysis) and moderation (delete a card with a reason)
     layout.tsx            Fonts, metadata
     globals.css           Design tokens (colours, fonts, animations)
   components/
@@ -80,9 +81,12 @@ media/                    Media sources and inventory (README): sound masters, v
 | `users` | Students: name, university email, Telegram handle, major, year |
 | `subjects` | Course catalogue with a category (CS & Dev, Mathematics, Humanities, Languages) |
 | `barter_posts` | Barter cards: needed subject, offered subject, topics, contact method, status |
-| `swap_requests` | Requests between students on a card |
+| `moderation_log` | Cards deleted by an administrator, with the reason (only through `admin_delete_card`) |
 | `search_history` | Recent searches per student (only through RPC functions) |
 | `favorites` | Cards a student liked (only through RPC functions) |
+| `card_files` | Photos / PDFs of example tasks on a card |
+
+Administrators (`users.role` = `admin` or `moderator`) open `/admin` from Profile → Settings. Demo data for the End-term analysis: `supabase/seed/` (generated, removable with one file).
 
 Row Level Security is on. Schema, migrations and the rules the database enforces: see [`supabase/README.md`](supabase/README.md).
 
