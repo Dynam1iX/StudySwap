@@ -23,10 +23,11 @@ Every change to the database lives in `migrations/` as a numbered SQL file, so t
 | `20261027140000_card_preview.sql` | Card links `/c/<slug>-<code>`: `get_card_preview` — **public on purpose** (chat apps fetch link previews without signing in); returns only subjects, topics, author first name + initial, major, year of an active card | Applied (SQL Editor) |
 | `20261024010000_swap_requests.sql` | Swap requests in the app (statuses, six request functions, handles visible after an accepted swap). Applied 2026-10-24 but the file was lost; **restored from the live database for history only — do not re-run** | Applied (SQL Editor) |
 | `20261027160000_hardening.sql` | Bug review fixes: cards cannot set their own `id` / `created_at`, unique 8-character link code; drops `swap_requests` and its functions (`get_telegram_handles`, `export_my_data` updated); the AITU e-mail rule also on e-mail change | Applied (SQL Editor) |
-| `20261029120000_polish.sql` | Small review fixes: `update_my_card` fails for a card that no longer exists; topic texts at most 150 characters as stored; `complete_my_profile` requires a year; photos readable only while they are someone's current photo (`avatars_read_current`) | **Not applied yet** — run in the SQL Editor |
+| `20261029120000_polish.sql` | Small review fixes: `update_my_card` fails for a card that no longer exists; topic texts at most 150 characters as stored; `complete_my_profile` requires a year; photos readable only while they are someone's current photo (`avatars_read_current`) | Applied (SQL Editor) |
 | `20261029180000_teachers.sql` | Any `@astanait.edu.kz` e-mail can sign up (codes, Microsoft, e-mail change); **Teacher** next to Bachelor's / Master's: `degree_level = 'Teacher'`, `study_year` null (shown as "Teacher" instead of the year); `complete_my_profile` accepts a teacher without a year | Applied (SQL Editor) |
-| `20261029200000_card_files.sql` | Files on a card ("Needs help" side): private bucket `card-files` (WebP/JPEG photos and PDFs, 10 MB), table `card_files` (at most 3 per card, readable for cards you can see, added/removed by the author only) | **Not applied yet** — run in the SQL Editor |
-| `20261029190000_teacher_by_email.sql` | Teacher is decided by the e-mail: exactly 6 digits = student, anything else = teacher (`check_teacher_email` on `users`; `complete_my_profile` sets Teacher for a name e-mail and refuses it for a student e-mail) | **Not applied yet** — run in the SQL Editor |
+| `20261029200000_card_files.sql` | Files on a card ("Needs help" side): private bucket `card-files` (WebP/JPEG photos and PDFs, 10 MB), table `card_files` (at most 3 per card, readable for cards you can see, added/removed by the author only) | Applied (SQL Editor) |
+| `20261029190000_teacher_by_email.sql` | Teacher is decided by the e-mail: exactly 6 digits = student, anything else = teacher (`check_teacher_email` on `users`; `complete_my_profile` sets Teacher for a name e-mail and refuses it for a student e-mail) | Applied (SQL Editor) |
+| `20261101120000_admin.sql` | Administrator page `/admin`: `moderation_log` table; `am_i_admin`, `admin_list_cards`, `admin_delete_card` (with a reason), `admin_stats` (totals + the three End-term analysis queries); every function checks the role in the database; 260668 becomes admin | **Not applied yet** — run in the SQL Editor |
 | `20261022200000_sign_in.sql` | Only `6 digits@astanait.edu.kz` can sign up (trigger on `auth.users`); `complete_my_profile`; signed-in students never fall back to the demo account | Applied (SQL Editor) |
 | `20261022180000_avatars.sql` | Storage bucket `avatars` (own-folder policies), `users.avatar_path`, `set_my_avatar`, `remove_my_avatar` | Applied (SQL Editor) |
 | `20261022160000_profile_settings.sql` | `users.telegram_visibility`; `get_my_cards`, `update_my_card`, `set_my_card_status`, `delete_my_card`, `set_telegram_visibility`, `export_my_data` | Applied (SQL Editor) |
@@ -39,6 +40,10 @@ On 2026-10-20 19:03 UTC the old setup script (`DROP TABLE … CASCADE`, `CREATE 
 
 Supabase asks for confirmation before destructive statements (`DROP`, `DELETE`). Run such a migration in the [SQL Editor](https://supabase.com/dashboard/project/bepchknwwdmvugpcypgt/sql/new), confirm, then record it in `supabase_migrations.schema_migrations` with the file's version so the history matches this folder.
 
+## Demo data (`seed/`)
+
+`seed/demo_data.sql` adds 40 demo students (student IDs 000001–000040, which no real student has) and 125 barter cards spread over 12 Oct – 1 Nov 2026, for the End-term data analysis. It is **generated test data** and deterministic (`setseed`), so every run gives the same cards. Added on 2026-11-01. `seed/demo_data_remove.sql` deletes all of it.
+
 ## Tables
 
 | Table | Purpose |
@@ -49,6 +54,7 @@ Supabase asks for confirmation before destructive statements (`DROP`, `DELETE`).
 | `barter_posts` | Barter cards: needed subject + topics, offered subject + topics, contact method, status |
 | `search_history` | Recent searches of a student (10 newest, one row per query) |
 | `favorites` | Cards a student liked (one row per student and card) |
+| `moderation_log` | Cards an administrator deleted: card details, reason, who and when (no direct access; written by `admin_delete_card`) |
 
 ## Rules enforced by the database
 

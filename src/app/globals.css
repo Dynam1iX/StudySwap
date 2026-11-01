@@ -723,3 +723,27 @@ html.lang-in nav:not([data-hotbar]) span,
 html.lang-in nav[data-hotbar] [aria-current] .hotbar-label {
   animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Admin statistics (/admin): bars grow from the left, the line draws itself. */
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes draw-line {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.grow-x {
+  transform-origin: left center;
+  animation: grow-x 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.draw-line {
+  stroke-dasharray: 1;
+  animation: draw-line 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .grow-x,
+  .draw-line {
+    animation: none;
+  }
+}
