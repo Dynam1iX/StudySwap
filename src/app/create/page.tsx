@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, Clock, ShieldCheck, X } from 'lucide-react';
+import { Check, Clock, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { BarterCard, type CardHalf } from '@/components/barter/BarterCard';
 import { ContactMethodToggle } from '@/components/create/ContactMethodToggle';
 import { CreateNavBar } from '@/components/create/CreateNavBar';
@@ -223,6 +223,8 @@ export default function CreateBarterPage() {
         setRejection({ category: answer.category, field: answer.field, fileKey });
         setRejectCount((count) => count + 1);
         failValidation();
+      } else if (answer.result === 'limited') {
+        failValidation(t.moderation.limited(answer.retryAfter));
       } else {
         failValidation(t.moderation.errors[answer.result === 'error' ? answer.error : 'server']);
       }
@@ -397,6 +399,18 @@ export default function CreateBarterPage() {
                 <ShieldCheck aria-hidden className="size-5" strokeWidth={2.2} />
               </span>
               <p className="text-[13px] leading-[19px] font-semibold text-ink">{t.create.privacyNote}</p>
+            </div>
+            {/* The AI check sends topics and files to Google: say so before publishing. */}
+            <div className="mt-2 flex items-center gap-3 rounded-[16px] bg-brand-soft p-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-from to-brand-to text-white shadow-[0_4px_12px_rgba(173,70,255,0.3)]">
+                <Sparkles aria-hidden className="size-5" strokeWidth={2.2} />
+              </span>
+              <p className="text-[13px] leading-[19px] font-semibold text-ink">
+                {t.moderation.aiNote}{' '}
+                <Link href="/privacy#ai" className="text-brand-ink underline underline-offset-2">
+                  {t.moderation.aiNoteLink}
+                </Link>
+              </p>
             </div>
           </div>
         </div>

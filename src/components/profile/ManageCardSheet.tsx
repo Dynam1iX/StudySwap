@@ -199,6 +199,7 @@ function ManageForm({
         playSound('error');
         return;
       }
+      if (answer.result === 'limited') throw new Error(t.moderation.limited(answer.retryAfter));
       if (answer.result === 'error') throw new Error(t.moderation.errors[answer.error]);
       uploads.settle();
       if (answer.result === 'pending') outcome = 'pending';

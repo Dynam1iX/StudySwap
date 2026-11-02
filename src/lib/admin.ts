@@ -1,3 +1,4 @@
+import type { CardFile } from '@/lib/cardFiles';
 import { supabase } from '@/lib/supabase';
 import type { Category, PostStatus } from '@/types/database';
 
@@ -16,6 +17,8 @@ export interface AdminCard {
   author_name: string;
   author_email: string;
   file_count: number;
+  /** Photos / PDFs on the card, oldest first (missing before 20261102120000_ai_moderation runs). */
+  files?: CardFile[];
 }
 
 /** admin_stats(): totals and the three End-term analysis results (see migration 20261101120000_admin). */

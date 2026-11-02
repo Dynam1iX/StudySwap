@@ -44,14 +44,20 @@ export interface EditCardRequest {
  * Answer of both routes:
  * - published / saved: the AI allowed it;
  * - pending: the AI could not answer, the card is hidden until an administrator checks it;
- * - rejected: nothing was written; `file` is the index in the `files` sent (field 'file').
+ * - rejected: nothing was written; `file` is the index in the `files` sent (field 'file');
+ * - limited: too many checks in the last hour, nothing was checked or written;
+ *   `retryAfter` is in minutes.
  */
 export type CardCheckResponse =
   | { result: 'published'; id: string }
   | { result: 'saved' }
   | { result: 'pending'; id: string }
   | { result: 'rejected'; category: Violation; field: ViolationField | null; file: number | null }
+  | { result: 'limited'; retryAfter: number }
   | { result: 'error'; error: CardErrorCode };
+
+/** AI checks per student per hour (the database counts them: take_ai_check). */
+export const AI_CHECKS_PER_HOUR = 10;
 
 /** Errors the browser turns into a message. */
 export type CardErrorCode = 'auth' | 'profile' | 'invalid' | 'files' | 'not-found' | 'server';

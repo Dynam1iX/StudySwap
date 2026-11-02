@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CardCheckResponse, CardErrorCode, UploadedFile } from '@/lib/moderation';
+import { AI_CHECKS_PER_HOUR, type CardCheckResponse, type CardErrorCode, type UploadedFile } from '@/lib/moderation';
 import type { ModerationFile } from '@/lib/server/gemini';
 
 /**
@@ -140,6 +140,23 @@ export async function subjectNames(db: SupabaseClient, ids: number[]): Promise<M
   }
   if (ids.some((id) => !names.has(id))) throw new CardError('invalid', 400, 'unknown subject');
   return names;
+}
+
+/**
+ * Counts one AI check for the student. Returns null when allowed, otherwise the answer
+ * for the browser (minutes until the next check). If the counter itself fails (e.g. the
+ * migration has not been run yet) the check goes ahead: the limit protects the quota,
+ * it must not block students.
+ */
+export async function takeAiCheck(db: SupabaseClient, userId: string): Promise<Response | null> {
+  const { data, error } = await db.rpc('take_ai_check', { p_user: userId, p_limit: AI_CHECKS_PER_HOUR });
+  if (error) {
+    console.error('AI check limit unavailable:', error.message);
+    return null;
+  }
+  const seconds = typeof data === 'number' ? data : 0;
+  if (seconds <= 0) return null;
+  return json({ result: 'limited', retryAfter: Math.max(1, Math.ceil(seconds / 60)) }, 429);
 }
 
 /** Removes files from Storage (best effort: an orphaned file does no harm). */

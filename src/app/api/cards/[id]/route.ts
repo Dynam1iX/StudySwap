@@ -10,6 +10,7 @@ import {
   MAX_FILES,
   removeStored,
   subjectNames,
+  takeAiCheck,
   topic,
   uploadedFiles,
 } from '@/lib/server/cards';
@@ -59,6 +60,9 @@ export async function PATCH(request: Request, ctx: RouteContext<'/api/cards/[id]
     let status = post.status as string;
 
     if (textChanged || files.length > 0) {
+      const limited = await takeAiCheck(db, userId);
+      if (limited) return limited;
+
       const [names, loaded] = await Promise.all([
         subjectNames(db, [post.needed_subject_id as number, post.offered_subject_id as number]),
         loadFiles(db, files),

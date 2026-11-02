@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Check, Clock, Loader2, Paperclip, Search, Trash2 } from 'lucide-react';
+import { TaskFiles } from '@/components/files/TaskFiles';
 import { DELETE_REASONS, type AdminCard, type DeleteReason } from '@/lib/admin';
 import { paletteFor } from '@/lib/categoryPalette';
 import { formatPostedAt } from '@/lib/format';
@@ -117,6 +118,12 @@ function ModerationRow({
             <SubjectLine label={t.profile.needs} name={card.needed_name} category={card.needed_category} topic={card.description} />
             <SubjectLine label={t.profile.teaches} name={card.offered_name} category={card.offered_category} topic={card.offered_description} />
           </div>
+          {/* Photos open full screen, PDFs in a new tab: the administrator sees exactly what students see. */}
+          {(card.files?.length ?? 0) > 0 && (
+            <div className="px-1">
+              <TaskFiles files={card.files ?? []} />
+            </div>
+          )}
 
           {!confirming ? (
             <div className="flex items-center justify-between gap-3 px-1">

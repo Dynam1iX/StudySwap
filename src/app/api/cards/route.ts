@@ -8,6 +8,7 @@ import {
   loadFiles,
   subjectId,
   subjectNames,
+  takeAiCheck,
   topic,
   uploadedFiles,
 } from '@/lib/server/cards';
@@ -47,6 +48,9 @@ export async function POST(request: Request): Promise<Response> {
     if (meError) throw meError;
     if (!me) throw new CardError('profile', 403);
     if (contactMethod === 'telegram' && !me.telegram_handle) throw new CardError('invalid', 400, 'no telegram');
+
+    const limited = await takeAiCheck(db, userId);
+    if (limited) return limited;
 
     const [names, loaded] = await Promise.all([subjectNames(db, [neededId, offeredId]), loadFiles(db, files)]);
 

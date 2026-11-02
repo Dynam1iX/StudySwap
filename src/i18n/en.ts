@@ -257,6 +257,9 @@ export const en = {
     pendingCreate: 'The AI check is not available right now, so a moderator will look at your card. It appears in the Feed after approval.',
     pendingEdit: 'Sent to a moderator: the card is hidden until approval',
     pendingHint: 'A moderator is checking this card. You can switch it on after approval.',
+    limited: (minutes: number) => `Too many checks in the last hour. Try again in ${minutes} min.`,
+    aiNote: 'Before publishing, AI (Google Gemini) checks the topics and files for rule violations.',
+    aiNoteLink: 'How your data is used',
     errors: {
       auth: 'Your session has expired. Sign in again.',
       profile: 'Complete your profile first.',
@@ -265,6 +268,14 @@ export const en = {
       'not-found': 'This card no longer exists.',
       server: 'Could not save. Try again.',
     } satisfies Record<CardErrorCode, string> as Record<CardErrorCode, string>,
+  },
+
+  /** /terms and /privacy: the texts are in src/i18n/legal.ts. */
+  legal: {
+    back: 'Back',
+    updated: 'Last updated',
+    contact: 'Contact',
+    otherDoc: { terms: 'Privacy Policy', privacy: 'Terms of Use' },
   },
 
   files: {
@@ -424,6 +435,11 @@ export const en = {
     codeValid: 'The code works for 10 minutes.',
     resend: 'Resend code',
     resendIn: (seconds: number) => `Resend code in ${seconds}s`,
+    legalBefore: 'By continuing, you accept the ',
+    legalTerms: 'Terms of Use',
+    legalAnd: ' and the ',
+    legalPrivacy: 'Privacy Policy',
+    legalAfter: '.',
   },
 
   authErrors: {
