@@ -6,7 +6,10 @@ import {
   Banknote,
   CircleOff,
   Clock,
+  CloudOff,
+  FileWarning,
   GraduationCap,
+  Hourglass,
   Loader2,
   MessageSquareWarning,
   PenLine,
@@ -147,6 +150,49 @@ export function PendingNotice({ text }: { text: string }) {
         <Clock aria-hidden className="size-5" strokeWidth={2.2} />
       </span>
       <p className="text-[13px] leading-[19px] font-semibold text-ink">{text}</p>
+    </div>
+  );
+}
+
+/** Other problems on Publish / Save, shown as the same card as a rejection. */
+export type ErrorKind = 'error' | 'limit' | 'files';
+
+const ERROR_LOOK: Record<ErrorKind, { Icon: LucideIcon; from: string; to: string; ink: string; night: string }> = {
+  error: { Icon: CloudOff, from: '#E5484D', to: '#AD46FF', ink: '#BE123C', night: '#FDA4AF' },
+  limit: { Icon: Hourglass, from: '#F59E0B', to: '#F6339A', ink: '#B45309', night: '#FCD34D' },
+  files: { Icon: FileWarning, from: '#F97316', to: '#E5484D', ink: '#C2410C', night: '#FDBA74' },
+};
+
+/** A save / upload / limit error: gradient card with an icon, springs up above the button. */
+export function ErrorNotice({ kind, text }: { kind: ErrorKind; text: string }) {
+  const t = useT();
+  const { Icon, from, to, ink, night } = ERROR_LOOK[kind];
+  return (
+    <div
+      role="alert"
+      style={{ backgroundImage: `linear-gradient(135deg, ${from}, ${to})` }}
+      className="notice-spring rounded-[26px] p-[1.5px] shadow-[0_14px_36px_rgba(27,21,48,0.16)]"
+    >
+      <div
+        style={{ backgroundImage: `radial-gradient(120% 90% at 0% 0%, ${from}1f, transparent 60%)` }}
+        className="flex items-center gap-3.5 rounded-[24.5px] bg-surface p-4"
+      >
+        <span
+          style={{ backgroundImage: `linear-gradient(135deg, ${from}, ${to})`, boxShadow: `0 8px 22px ${from}66` }}
+          className="notice-icon flex size-12 shrink-0 items-center justify-center rounded-2xl text-white"
+        >
+          <Icon aria-hidden className="size-6" strokeWidth={2.2} />
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p
+            style={{ '--ink': ink, '--night': night } as CSSProperties}
+            className="font-bricolage text-[16px] leading-6 font-extrabold text-[var(--ink)] dark:text-[var(--night)]"
+          >
+            {kind === 'limit' ? t.moderation.limitTitle : t.moderation.errorTitle}
+          </p>
+          <p className="text-[13px] leading-[19px] font-medium text-ink">{text}</p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -241,6 +241,8 @@ export const ru: Messages = {
     checking: 'ИИ проверяет карточку…',
     rejectedTitle: 'Карточка не опубликована',
     rejectedEditTitle: 'Изменения не сохранены',
+    errorTitle: 'Что-то пошло не так',
+    limitTitle: 'Сделайте небольшую паузу',
     chip: 'ИИ-проверка',
     categories: {
       abuse: 'Мат и оскорбления',

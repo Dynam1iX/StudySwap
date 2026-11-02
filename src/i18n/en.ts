@@ -242,6 +242,8 @@ export const en = {
     checking: 'AI is checking the card…',
     rejectedTitle: 'The card was not published',
     rejectedEditTitle: 'The changes were not saved',
+    errorTitle: 'Something went wrong',
+    limitTitle: 'Take a short break',
     chip: 'AI check',
     categories: {
       abuse: 'Swearing & insults',

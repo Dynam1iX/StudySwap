@@ -7,10 +7,12 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { AttachmentsField, itemsFromFiles, type AttachmentItem } from '@/components/files/AttachmentsField';
 import {
   CheckingLabel,
+  ErrorNotice,
   RejectionNotice,
   ScanOverlay,
   useFixHint,
   type CheckPhase,
+  type ErrorKind,
 } from '@/components/moderation/AiCheck';
 import { paletteFor } from '@/lib/categoryPalette';
 import { setMyCardStatus, type ProfileCard } from '@/lib/profile';
@@ -18,6 +20,16 @@ import { editCard, useFileUploads, type Rejection } from '@/lib/publish';
 import type { UploadedFile } from '@/lib/moderation';
 import { playSound } from '@/lib/sound';
 import { useT } from '@/i18n';
+
+/** An error with the look of its card (upload, hourly limit). */
+class NoticeError extends Error {
+  constructor(
+    readonly kind: ErrorKind,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 
 /** saved: the changes are live. pending: the AI could not check them, a moderator will. */
 export type SaveOutcome = 'saved' | 'pending';
@@ -145,7 +157,7 @@ function ManageForm({
   const [files, setFiles] = useState<AttachmentItem[]>(() => itemsFromFiles(card.files));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ kind: ErrorKind; text: string } | null>(null);
   /** Uploading new files, then the AI check of the new texts and files. */
   const [phase, setPhase] = useState<CheckPhase>('idle');
   const [rejection, setRejection] = useState<Rejection | null>(null);
@@ -186,7 +198,7 @@ function ManageForm({
           uploaded = await uploads.upload(userId, prepared);
         } catch (err: unknown) {
           console.error('Could not upload card files:', err);
-          throw new Error(t.files.uploadError);
+          throw new NoticeError('files', t.files.uploadError);
         }
       }
       // Only new texts and new files are checked; removing a file needs no check.
@@ -199,7 +211,7 @@ function ManageForm({
         playSound('error');
         return;
       }
-      if (answer.result === 'limited') throw new Error(t.moderation.limited(answer.retryAfter));
+      if (answer.result === 'limited') throw new NoticeError('limit', t.moderation.limited(answer.retryAfter));
       if (answer.result === 'error') throw new Error(t.moderation.errors[answer.error]);
       uploads.settle();
       if (answer.result === 'pending') outcome = 'pending';
@@ -220,7 +232,11 @@ function ManageForm({
       if (kind === 'save') await save();
       else await onDelete(card);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t.common.somethingWrong);
+      setError(
+        err instanceof NoticeError
+          ? { kind: err.kind, text: err.message }
+          : { kind: 'error', text: err instanceof Error ? err.message : t.common.somethingWrong },
+      );
     } finally {
       setBusy(null);
       setPhase('idle');
@@ -315,11 +331,7 @@ function ManageForm({
 
       {rejection && <RejectionNotice key={rejectCount} rejection={rejection} fix={fix} edit />}
 
-      {error && (
-        <p className="animate-shake rounded-xl border border-danger-line bg-danger-soft p-3 text-xs font-semibold text-danger-ink">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNotice key={error.text} kind={error.kind} text={error.text} />}
 
       <button
         type="button"

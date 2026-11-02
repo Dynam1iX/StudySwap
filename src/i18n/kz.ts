@@ -233,6 +233,8 @@ export const kz: Messages = {
     checking: 'ЖИ карточканы тексеруде…',
     rejectedTitle: 'Карточка жарияланбады',
     rejectedEditTitle: 'Өзгерістер сақталмады',
+    errorTitle: 'Бірдеңе дұрыс болмады',
+    limitTitle: 'Кішкене үзіліс жасаңыз',
     chip: 'ЖИ тексеруі',
     categories: {
       abuse: 'Балағат және қорлау',

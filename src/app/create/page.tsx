@@ -18,10 +18,12 @@ import type { UploadedFile } from '@/lib/moderation';
 import {
   CheckingLabel,
   PendingNotice,
+  ErrorNotice,
   RejectionNotice,
   ScanOverlay,
   useFixHint,
   type CheckPhase,
+  type ErrorKind,
 } from '@/components/moderation/AiCheck';
 import { AttachmentsField, type AttachmentItem } from '@/components/files/AttachmentsField';
 import { formatStudyInfo, getInitials, getShortName } from '@/lib/format';
@@ -79,6 +81,7 @@ export default function CreateBarterPage() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ErrorKind>('error');
   const [shakeTrigger, setShakeTrigger] = useState(0);
 
   const [authorId, setAuthorId] = useState('');
@@ -151,9 +154,12 @@ export default function CreateBarterPage() {
   const neededSubject = subjects.find((s) => s.id === neededSubjectId);
   const offeredSubject = subjects.find((s) => s.id === offeredSubjectId);
 
-  const failValidation = (message?: string) => {
+  const failValidation = (message?: string, kind: ErrorKind = 'error') => {
     playSound('error');
-    if (message) setServerError(message);
+    if (message) {
+      setServerError(message);
+      setErrorKind(kind);
+    }
     setShakeTrigger((prev) => prev + 1);
   };
 
@@ -192,7 +198,7 @@ export default function CreateBarterPage() {
           files = await uploads.upload(authorId, prepared);
         } catch (err: unknown) {
           console.error('Could not upload card files:', err);
-          failValidation(t.files.uploadError);
+          failValidation(t.files.uploadError, 'files');
           return;
         }
       }
@@ -224,7 +230,7 @@ export default function CreateBarterPage() {
         setRejectCount((count) => count + 1);
         failValidation();
       } else if (answer.result === 'limited') {
-        failValidation(t.moderation.limited(answer.retryAfter));
+        failValidation(t.moderation.limited(answer.retryAfter), 'limit');
       } else {
         failValidation(t.moderation.errors[answer.result === 'error' ? answer.error : 'server']);
       }
@@ -262,16 +268,6 @@ export default function CreateBarterPage() {
       <div className="animate-rise px-4 py-2 motion-reduce:animate-none">
         <p className="text-[14px] leading-[21px] font-semibold text-muted">{t.create.intro}</p>
       </div>
-
-      {(serverError || loadFailed) && (
-        <div
-          key={`err-${shakeTrigger}`}
-          role="alert"
-          className="mx-4 mb-2 animate-shake rounded-xl border border-danger-line bg-danger-soft p-3 text-xs font-semibold text-danger-ink"
-        >
-          {serverError ?? t.create.loadError}
-        </div>
-      )}
 
       {/* Desktop: form on the left, live preview on the right. */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-2">
@@ -422,12 +418,16 @@ export default function CreateBarterPage() {
         </div>
       </div>
 
-      {(rejection || done === 'pending') && (
+      {(rejection || done === 'pending' || serverError || loadFailed) && (
         <div className="px-4 pt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-2">
           {done === 'pending' ? (
             <PendingNotice text={t.moderation.pendingCreate} />
           ) : (
-            rejection && <RejectionNotice key={rejectCount} rejection={rejection} fix={fix} />
+            rejection ? (
+              <RejectionNotice key={rejectCount} rejection={rejection} fix={fix} />
+            ) : (
+              <ErrorNotice key={`err-${shakeTrigger}`} kind={serverError ? errorKind : 'error'} text={serverError ?? t.create.loadError} />
+            )
           )}
         </div>
       )}
