@@ -295,6 +295,7 @@ export default function CreateBarterPage() {
               shakeKey={shakeTrigger}
             />
 
+            <div data-check-field="needed">
             <TopicsField
               label={t.create.neededTopics}
               placeholder={t.create.neededPlaceholder}
@@ -310,7 +311,9 @@ export default function CreateBarterPage() {
               }
               shakeKey={shakeTrigger}
             />
+            </div>
 
+            <div data-check-field="file">
             <AttachmentsField
               items={attachments}
               onChange={(items) => {
@@ -320,6 +323,7 @@ export default function CreateBarterPage() {
               disabled={submitting || published}
               flagged={rejection?.fileKey && fix ? { key: rejection.fileKey, message: fix, shakeKey: rejectCount } : null}
             />
+            </div>
 
             <SubjectSelect
               label={t.create.offeredSubject}
@@ -339,6 +343,7 @@ export default function CreateBarterPage() {
               spaced
             />
 
+            <div data-check-field="offered">
             <TopicsField
               label={t.create.offeredTopics}
               placeholder={t.create.offeredPlaceholder}
@@ -358,6 +363,7 @@ export default function CreateBarterPage() {
               }
               shakeKey={shakeTrigger}
             />
+            </div>
 
             <ContactMethodToggle value={contactMethod} onChange={setContactMethod} telegramAvailable={hasTelegram} />
           </div>

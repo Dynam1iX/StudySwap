@@ -241,6 +241,7 @@ function ManageForm({
 
       {/* key: the flagged field shakes again on every rejection. Scanner line during the check. */}
       <div key={`fields-${rejectCount}`} className="relative -mx-2 flex flex-col gap-4 rounded-2xl px-2 py-1">
+        <div data-check-field="needed">
         <TopicInput
           label={t.create.neededTopics}
           value={neededTopic}
@@ -250,6 +251,8 @@ function ManageForm({
           }}
           error={rejection?.field === 'needed' ? t.moderation.fix.needed : null}
         />
+        </div>
+        <div data-check-field="file">
         <AttachmentsField
           items={files}
           onChange={(items) => {
@@ -259,6 +262,8 @@ function ManageForm({
           disabled={busy !== null}
           flagged={rejection?.fileKey && fix ? { key: rejection.fileKey, message: fix, shakeKey: rejectCount } : null}
         />
+        </div>
+        <div data-check-field="offered">
         <TopicInput
           label={t.manage.offeredTopics}
           value={offeredTopic}
@@ -268,6 +273,7 @@ function ManageForm({
           }}
           error={rejection?.field === 'offered' ? t.moderation.fix.offered : null}
         />
+        </div>
         <ScanOverlay active={phase === 'checking'} />
       </div>
 

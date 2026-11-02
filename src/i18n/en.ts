@@ -242,6 +242,13 @@ export const en = {
     checking: 'AI is checking the card…',
     rejectedTitle: 'The card was not published',
     rejectedEditTitle: 'The changes were not saved',
+    chip: 'AI check',
+    categories: {
+      abuse: 'Swearing & insults',
+      money: 'Money & ads',
+      cheating: 'Academic honesty',
+      spam: 'Off-topic & spam',
+    } satisfies Record<Violation, string> as Record<Violation, string>,
     reasons: {
       abuse: 'StudySwap does not allow swearing, insults, 18+ or violent content.',
       money: 'StudySwap is free: no prices, payment or advertising.',

@@ -500,6 +500,35 @@ html.app-scroll .app-shell-content {
   }
 }
 
+/* Rejection card of the AI check: springs up, then its icon pops and wiggles once. */
+.notice-spring {
+  animation: notice-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.notice-icon {
+  animation:
+    pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both,
+    wiggle 0.5s ease-in-out 0.6s;
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice-spring,
+  .notice-icon {
+    animation: none;
+  }
+}
+
 /* A soft halo that breathes around the "+" button. */
 .halo::before {
   content: '';
