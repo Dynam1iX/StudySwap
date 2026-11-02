@@ -10,6 +10,8 @@ import { useT } from '@/i18n';
 const LOGIN_PATH = '/login';
 /** "Complete your profile", for students signed in without a profile yet. */
 const WELCOME_PATH = '/welcome';
+/** Open to everyone, signed in or not: the login page links to them. */
+const PUBLIC_PATHS = new Set(['/terms', '/privacy']);
 
 /** A card or profile link opened while signed out: shown again right after signing in. */
 const RETURN_KEY = 'studyswap-return-to';
@@ -39,6 +41,7 @@ type Status = 'checking' | 'signed-out' | 'needs-profile' | 'ready' | 'error';
 
 /** Where a student with this status may be; null means "anywhere else". */
 function targetFor(status: Status, path: string): string | null {
+  if (PUBLIC_PATHS.has(path)) return null;
   if (status === 'signed-out') return path === LOGIN_PATH ? null : LOGIN_PATH;
   if (status === 'needs-profile') return path === WELCOME_PATH ? null : WELCOME_PATH;
   if (status === 'ready') return path === LOGIN_PATH || path === WELCOME_PATH ? '/' : null;

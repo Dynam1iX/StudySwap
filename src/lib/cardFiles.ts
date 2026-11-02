@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { messages } from '@/i18n';
+import type { UploadedFile } from '@/lib/moderation';
 
 /**
  * Files on a card ("Needs help" side): photos or PDFs with the exact tasks.
@@ -127,12 +128,12 @@ export async function removeStoredFiles(paths: string[]): Promise<void> {
 }
 
 /**
- * Uploads the files to <student id>/<uuid>.<ext> and attaches them to the card.
- * All or nothing: if anything fails, the uploaded files are removed again.
+ * Uploads the files to <student id>/<uuid>.<ext>. They are not on a card yet: the server
+ * attaches them after the AI check (/api/cards). All or nothing: if one upload fails,
+ * the ones already uploaded are removed again.
  */
-export async function attachFiles(userId: string, postId: string, files: PreparedFile[]): Promise<void> {
-  if (files.length === 0) return;
-  const uploaded: { file: PreparedFile; path: string }[] = [];
+export async function uploadFiles(userId: string, files: PreparedFile[]): Promise<UploadedFile[]> {
+  const uploaded: UploadedFile[] = [];
   try {
     for (const file of files) {
       const path = `${userId}/${crypto.randomUUID()}.${file.extension}`;
@@ -144,36 +145,13 @@ export async function attachFiles(userId: string, postId: string, files: Prepare
         upsert: false,
       });
       if (error) throw error;
-      uploaded.push({ file, path });
+      uploaded.push({ path, name: file.name, kind: file.kind });
     }
-    const { error } = await supabase.from('card_files').insert(
-      uploaded.map(({ file, path }) => ({
-        post_id: postId,
-        path,
-        name: file.name,
-        kind: file.kind,
-        size_bytes: file.blob.size,
-      })),
-    );
-    if (error) throw error;
+    return uploaded;
   } catch (err: unknown) {
     await removeStoredFiles(uploaded.map((item) => item.path));
     throw err;
   }
-}
-
-/** Takes files off one of my cards and deletes them. */
-export async function detachFiles(files: Pick<CardFile, 'id' | 'path'>[]): Promise<void> {
-  if (files.length === 0) return;
-  const { error } = await supabase
-    .from('card_files')
-    .delete()
-    .in(
-      'id',
-      files.map((file) => file.id),
-    );
-  if (error) throw error;
-  await removeStoredFiles(files.map((file) => file.path));
 }
 
 /** Files on my own cards (also inactive ones), grouped by card. */

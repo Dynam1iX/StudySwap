@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, ShieldCheck, X } from 'lucide-react';
+import { Check, Clock, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { BarterCard, type CardHalf } from '@/components/barter/BarterCard';
 import { ContactMethodToggle } from '@/components/create/ContactMethodToggle';
 import { CreateNavBar } from '@/components/create/CreateNavBar';
@@ -12,7 +12,19 @@ import { TopicsField } from '@/components/create/TopicsField';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { MobileShell } from '@/components/layout/MobileShell';
 import { paletteFor } from '@/lib/categoryPalette';
-import { createBarterPost, fetchCreateFormData, FilesUploadError } from '@/lib/create';
+import { fetchCreateFormData } from '@/lib/create';
+import { createCard, useFileUploads, type Rejection } from '@/lib/publish';
+import type { UploadedFile } from '@/lib/moderation';
+import {
+  CheckingLabel,
+  PendingNotice,
+  ErrorNotice,
+  RejectionNotice,
+  ScanOverlay,
+  useFixHint,
+  type CheckPhase,
+  type ErrorKind,
+} from '@/components/moderation/AiCheck';
 import { AttachmentsField, type AttachmentItem } from '@/components/files/AttachmentsField';
 import { formatStudyInfo, getInitials, getShortName } from '@/lib/format';
 import { useReplay } from '@/lib/useReplay';
@@ -44,8 +56,19 @@ export default function CreateBarterPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  /** Published: the button turns into a check and bursts bubbles before going to the Feed. */
-  const [published, setPublished] = useState(false);
+  /** Uploading the files, then the AI check (/api/cards). */
+  const [phase, setPhase] = useState<CheckPhase>('idle');
+  /**
+   * published: the button turns into a check and bursts bubbles before going to the Feed.
+   * pending: the AI could not check the card, a moderator will; then go to Profile.
+   */
+  const [done, setDone] = useState<'published' | 'pending' | null>(null);
+  const published = done !== null;
+  /** The AI did not let the card through: the reason, and the part to fix. */
+  const [rejection, setRejection] = useState<Rejection | null>(null);
+  const [rejectCount, setRejectCount] = useState(0);
+  const uploads = useFileUploads();
+  const fixHint = useFixHint();
   const [bubbling, bubble] = useReplay(700);
 
   const [neededSubjectId, setNeededSubjectId] = useState<number | null>(null);
@@ -58,6 +81,7 @@ export default function CreateBarterPage() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ErrorKind>('error');
   const [shakeTrigger, setShakeTrigger] = useState(0);
 
   const [authorId, setAuthorId] = useState('');
@@ -113,18 +137,29 @@ export default function CreateBarterPage() {
       setNeededDetails('');
       setOfferedDetails('');
       setContactMethod('email');
+      setAttachments([]);
       setErrors({});
       setServerError(null);
-      setPublished(false);
+      setRejection(null);
+      setDone(null);
     };
   }, [published]);
+
+  // Files taken out of the form after an attempt: their uploads are removed.
+  const { keepOnly } = uploads;
+  useEffect(() => {
+    keepOnly(attachments.flatMap((item) => (item.prepared ? [item.prepared.key] : [])));
+  }, [attachments, keepOnly]);
 
   const neededSubject = subjects.find((s) => s.id === neededSubjectId);
   const offeredSubject = subjects.find((s) => s.id === offeredSubjectId);
 
-  const failValidation = (message?: string) => {
+  const failValidation = (message?: string, kind: ErrorKind = 'error') => {
     playSound('error');
-    if (message) setServerError(message);
+    if (message) {
+      setServerError(message);
+      setErrorKind(kind);
+    }
     setShakeTrigger((prev) => prev + 1);
   };
 
@@ -153,27 +188,61 @@ export default function CreateBarterPage() {
     }
 
     setSubmitting(true);
+    setRejection(null);
+    const prepared = attachments.flatMap((item) => (item.prepared ? [item.prepared] : []));
     try {
-      await createBarterPost({
-        author_id: authorId,
-        needed_subject_id: neededSubjectId,
-        offered_subject_id: offeredSubjectId,
-        description: neededDetails.trim(),
-        offered_description: offeredDetails.trim(),
-        contact_method: contactMethod,
-        status: 'active',
-      }, attachments.flatMap((item) => (item.prepared ? [item.prepared] : [])));
+      let files: UploadedFile[] = [];
+      if (prepared.length > 0) {
+        setPhase('uploading');
+        try {
+          files = await uploads.upload(authorId, prepared);
+        } catch (err: unknown) {
+          console.error('Could not upload card files:', err);
+          failValidation(t.files.uploadError, 'files');
+          return;
+        }
+      }
+
+      setPhase('checking');
+      const answer = await createCard({
+        neededSubjectId,
+        offeredSubjectId,
+        neededTopic: neededDetails.trim(),
+        offeredTopic: offeredDetails.trim(),
+        contactMethod,
+        files,
+      });
+
+      if (answer.result === 'published' || answer.result === 'pending') {
+        uploads.settle();
+        setDone(answer.result);
+        playSound('publish');
+        if (answer.result === 'published') {
+          bubble();
+          window.setTimeout(() => router.push('/'), 900);
+        } else {
+          // Long enough to read the note; the card is in Profile → My cards.
+          window.setTimeout(() => router.push('/profile'), 3200);
+        }
+      } else if (answer.result === 'rejected') {
+        const fileKey = answer.field === 'file' && answer.file !== null ? (prepared[answer.file]?.key ?? null) : null;
+        setRejection({ category: answer.category, field: answer.field, fileKey });
+        setRejectCount((count) => count + 1);
+        failValidation();
+      } else if (answer.result === 'limited') {
+        failValidation(t.moderation.limited(answer.retryAfter), 'limit');
+      } else {
+        failValidation(t.moderation.errors[answer.result === 'error' ? answer.error : 'server']);
+      }
+    } finally {
       setSubmitting(false);
-      setPublished(true);
-      bubble();
-      playSound('publish');
-      window.setTimeout(() => router.push('/'), 900);
-    } catch (err: unknown) {
-      setSubmitting(false);
-      console.error('Error publishing the card:', err);
-      failValidation(err instanceof FilesUploadError ? t.files.uploadError : t.create.saveError);
+      setPhase('idle');
     }
   };
+
+  const flaggedNumber =
+    rejection?.fileKey != null ? attachments.findIndex((item) => item.key === rejection.fileKey) + 1 || null : null;
+  const fix = fixHint(rejection, flaggedNumber);
 
   const neededError = errors.needed ? (errors.sameSubject ? t.create.sameSubject : t.create.neededMissing) : null;
   const offeredError = errors.offered ? (errors.sameSubject ? t.create.sameSubject : t.create.offeredMissing) : null;
@@ -200,16 +269,6 @@ export default function CreateBarterPage() {
         <p className="text-[14px] leading-[21px] font-semibold text-muted">{t.create.intro}</p>
       </div>
 
-      {(serverError || loadFailed) && (
-        <div
-          key={`err-${shakeTrigger}`}
-          role="alert"
-          className="mx-4 mb-2 animate-shake rounded-xl border border-danger-line bg-danger-soft p-3 text-xs font-semibold text-danger-ink"
-        >
-          {serverError ?? t.create.loadError}
-        </div>
-      )}
-
       {/* Desktop: form on the left, live preview on the right. */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-2">
         {/* Form */}
@@ -232,6 +291,7 @@ export default function CreateBarterPage() {
               shakeKey={shakeTrigger}
             />
 
+            <div data-check-field="needed">
             <TopicsField
               label={t.create.neededTopics}
               placeholder={t.create.neededPlaceholder}
@@ -240,12 +300,26 @@ export default function CreateBarterPage() {
                 setNeededDetails(text);
                 if (errors.neededDetails && text.trim()) setErrors((prev) => ({ ...prev, neededDetails: false }));
                 setServerError(null);
+                if (rejection?.field === 'needed') setRejection(null);
               }}
-              error={errors.neededDetails ? t.create.neededTopicsMissing : null}
+              error={
+                errors.neededDetails ? t.create.neededTopicsMissing : rejection?.field === 'needed' ? t.moderation.fix.needed : null
+              }
               shakeKey={shakeTrigger}
             />
+            </div>
 
-            <AttachmentsField items={attachments} onChange={setAttachments} disabled={submitting || published} />
+            <div data-check-field="file">
+            <AttachmentsField
+              items={attachments}
+              onChange={(items) => {
+                setAttachments(items);
+                if (rejection?.fileKey && !items.some((item) => item.key === rejection.fileKey)) setRejection(null);
+              }}
+              disabled={submitting || published}
+              flagged={rejection?.fileKey && fix ? { key: rejection.fileKey, message: fix, shakeKey: rejectCount } : null}
+            />
+            </div>
 
             <SubjectSelect
               label={t.create.offeredSubject}
@@ -265,6 +339,7 @@ export default function CreateBarterPage() {
               spaced
             />
 
+            <div data-check-field="offered">
             <TopicsField
               label={t.create.offeredTopics}
               placeholder={t.create.offeredPlaceholder}
@@ -273,10 +348,18 @@ export default function CreateBarterPage() {
                 setOfferedDetails(text);
                 if (errors.offeredDetails && text.trim()) setErrors((prev) => ({ ...prev, offeredDetails: false }));
                 setServerError(null);
+                if (rejection?.field === 'offered') setRejection(null);
               }}
-              error={errors.offeredDetails ? t.create.offeredTopicsMissing : null}
+              error={
+                errors.offeredDetails
+                  ? t.create.offeredTopicsMissing
+                  : rejection?.field === 'offered'
+                    ? t.moderation.fix.offered
+                    : null
+              }
               shakeKey={shakeTrigger}
             />
+            </div>
 
             <ContactMethodToggle value={contactMethod} onChange={setContactMethod} telegramAvailable={hasTelegram} />
           </div>
@@ -289,6 +372,11 @@ export default function CreateBarterPage() {
             className="animate-rise px-4 pt-4 pb-2 motion-reduce:animate-none lg:pt-2"
           >
             <h2 className="mb-2.5 text-[11px] font-bold tracking-[0.88px] text-muted uppercase">{t.create.preview}</h2>
+            {/* Scanner line during the AI check; a shake when it says no. */}
+            <div
+              key={`preview-${rejectCount}`}
+              className={`relative rounded-2xl ${rejectCount > 0 ? 'animate-shake motion-reduce:animate-none' : ''}`}
+            >
             <BarterCard
               author={{
                 initials: getInitials(authorName),
@@ -303,6 +391,8 @@ export default function CreateBarterPage() {
               teaches={previewHalf(offeredSubject, offeredDetails, t.create.previewSubject, t.create.previewOffered)}
               contactMethod={contactMethod}
             />
+              <ScanOverlay active={phase === 'checking'} />
+            </div>
           </div>
 
           <div style={{ animationDelay: '210ms' }} className="animate-rise px-4 py-2 motion-reduce:animate-none">
@@ -312,9 +402,35 @@ export default function CreateBarterPage() {
               </span>
               <p className="text-[13px] leading-[19px] font-semibold text-ink">{t.create.privacyNote}</p>
             </div>
+            {/* The AI check sends topics and files to Google: say so before publishing. */}
+            <div className="mt-2 flex items-center gap-3 rounded-[16px] bg-brand-soft p-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-from to-brand-to text-white shadow-[0_4px_12px_rgba(173,70,255,0.3)]">
+                <Sparkles aria-hidden className="size-5" strokeWidth={2.2} />
+              </span>
+              <p className="text-[13px] leading-[19px] font-semibold text-ink">
+                {t.moderation.aiNote}{' '}
+                <Link href="/privacy#ai" className="text-brand-ink underline underline-offset-2">
+                  {t.moderation.aiNoteLink}
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
+
+      {(rejection || done === 'pending' || serverError || loadFailed) && (
+        <div className="px-4 pt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-2">
+          {done === 'pending' ? (
+            <PendingNotice text={t.moderation.pendingCreate} />
+          ) : (
+            rejection ? (
+              <RejectionNotice key={rejectCount} rejection={rejection} fix={fix} />
+            ) : (
+              <ErrorNotice key={`err-${shakeTrigger}`} kind={serverError ? errorKind : 'error'} text={serverError ?? t.create.loadError} />
+            )
+          )}
+        </div>
+      )}
 
       {/* Publish: at the end of the form, not pinned to the screen */}
       <div
@@ -331,15 +447,23 @@ export default function CreateBarterPage() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting || loadingSubjects || published}
-          className={`bubbly flex h-[56px] w-full cursor-pointer lg:w-auto lg:px-10 items-center justify-center gap-2 rounded-[16px] bg-linear-to-r from-brand-fill-from to-brand-fill-to text-[17px] font-bold text-white shadow-[0_8px_20px_rgba(200,40,140,0.28)] transition hover:opacity-95 active:scale-[0.97] disabled:cursor-default ${
-            published ? '' : 'disabled:opacity-50'
-          } ${bubbling ? 'bubbly-animate' : ''}`}
+          aria-busy={phase !== 'idle'}
+          className={`bubbly flex h-[56px] w-full cursor-pointer lg:w-auto lg:px-10 items-center justify-center gap-2 rounded-[16px] text-[17px] font-bold text-white shadow-[0_8px_20px_rgba(200,40,140,0.28)] transition hover:opacity-95 active:scale-[0.97] disabled:cursor-default ${
+            phase === 'checking' ? 'ai-checking' : 'bg-linear-to-r from-brand-fill-from to-brand-fill-to'
+          } ${published || submitting ? '' : 'disabled:opacity-50'} ${bubbling ? 'bubbly-animate' : ''}`}
         >
-          {published ? (
+          {done === 'published' ? (
             <span className="flex animate-pop items-center gap-2 motion-reduce:animate-none">
               <Check className="size-5" strokeWidth={3} />
               {t.create.published}
             </span>
+          ) : done === 'pending' ? (
+            <span className="flex animate-pop items-center gap-2 motion-reduce:animate-none">
+              <Clock className="size-5" strokeWidth={2.6} />
+              {t.moderation.sentForReview}
+            </span>
+          ) : phase !== 'idle' ? (
+            <CheckingLabel phase={phase} />
           ) : submitting ? (
             t.create.publishing
           ) : (

@@ -11,6 +11,7 @@ import { MobileShell } from '@/components/layout/MobileShell';
 import { Toast, useToast } from '@/components/ui/Toast';
 import {
   amIAdmin,
+  approveCardAsAdmin,
   deleteCardAsAdmin,
   fetchAdminCards,
   fetchAdminStats,
@@ -60,6 +61,19 @@ export default function AdminPage() {
     await deleteCardAsAdmin(card.id, reason);
     showToast(t.admin.deleted);
     // Totals and charts change with the card gone.
+    fetchAdminStats()
+      .then((stats) => setState((prev) => (prev.status === 'ready' ? { ...prev, stats } : prev)))
+      .catch((err: unknown) => console.error('Error refreshing statistics:', err));
+  };
+
+  const approveCard = async (card: AdminCard) => {
+    await approveCardAsAdmin(card.id);
+    setState((prev) =>
+      prev.status === 'ready'
+        ? { ...prev, cards: prev.cards.map((item) => (item.id === card.id ? { ...item, status: 'active' } : item)) }
+        : prev,
+    );
+    showToast(t.admin.approved);
     fetchAdminStats()
       .then((stats) => setState((prev) => (prev.status === 'ready' ? { ...prev, stats } : prev)))
       .catch((err: unknown) => console.error('Error refreshing statistics:', err));
@@ -122,7 +136,7 @@ export default function AdminPage() {
               <StatsPanel stats={state.stats} />
             </section>
             <div style={{ animationDelay: '160ms' }} className="animate-rise motion-reduce:animate-none">
-              <ModerationList cards={state.cards} onDelete={deleteCard} onRemoved={removeFromList} />
+              <ModerationList cards={state.cards} onApprove={approveCard} onDelete={deleteCard} onRemoved={removeFromList} />
             </div>
           </div>
         )}

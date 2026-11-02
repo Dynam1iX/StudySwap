@@ -27,7 +27,8 @@ Every change to the database lives in `migrations/` as a numbered SQL file, so t
 | `20261029180000_teachers.sql` | Any `@astanait.edu.kz` e-mail can sign up (codes, Microsoft, e-mail change); **Teacher** next to Bachelor's / Master's: `degree_level = 'Teacher'`, `study_year` null (shown as "Teacher" instead of the year); `complete_my_profile` accepts a teacher without a year | Applied (SQL Editor) |
 | `20261029200000_card_files.sql` | Files on a card ("Needs help" side): private bucket `card-files` (WebP/JPEG photos and PDFs, 10 MB), table `card_files` (at most 3 per card, readable for cards you can see, added/removed by the author only) | Applied (SQL Editor) |
 | `20261029190000_teacher_by_email.sql` | Teacher is decided by the e-mail: exactly 6 digits = student, anything else = teacher (`check_teacher_email` on `users`; `complete_my_profile` sets Teacher for a name e-mail and refuses it for a student e-mail) | Applied (SQL Editor) |
-| `20261101120000_admin.sql` | Administrator page `/admin`: `moderation_log` table; `am_i_admin`, `admin_list_cards`, `admin_delete_card` (with a reason), `admin_stats` (totals + the three End-term analysis queries); every function checks the role in the database; 260668 becomes admin | **Not applied yet** — run in the SQL Editor |
+| `20261101120000_admin.sql` | Administrator page `/admin`: `moderation_log` table; `am_i_admin`, `admin_list_cards`, `admin_delete_card` (with a reason), `admin_stats` (totals + the three End-term analysis queries); every function checks the role in the database; 260668 becomes admin | Applied (SQL Editor) |
+| `20261102120000_ai_moderation.sql` | AI check of cards: status `pending` (the AI could not check the card: only its author sees it); students no longer insert cards or file rows, or call `update_my_card` — `/api/cards` writes them with the service role after the Gemini check; `set_my_card_status` refuses a pending card; `admin_approve_card`; `ai_checks` + `take_ai_check` (10 AI checks per student per hour, service role only); `admin_list_cards` also returns each card's files, and administrators may open every file in `card-files` (`card_files_read_admin`) | **Not applied yet** — run in the SQL Editor **after** the app version with `/api/cards` is live |
 | `20261022200000_sign_in.sql` | Only `6 digits@astanait.edu.kz` can sign up (trigger on `auth.users`); `complete_my_profile`; signed-in students never fall back to the demo account | Applied (SQL Editor) |
 | `20261022180000_avatars.sql` | Storage bucket `avatars` (own-folder policies), `users.avatar_path`, `set_my_avatar`, `remove_my_avatar` | Applied (SQL Editor) |
 | `20261022160000_profile_settings.sql` | `users.telegram_visibility`; `get_my_cards`, `update_my_card`, `set_my_card_status`, `delete_my_card`, `set_telegram_visibility`, `export_my_data` | Applied (SQL Editor) |
@@ -55,6 +56,7 @@ Supabase asks for confirmation before destructive statements (`DROP`, `DELETE`).
 | `search_history` | Recent searches of a student (10 newest, one row per query) |
 | `favorites` | Cards a student liked (one row per student and card) |
 | `moderation_log` | Cards an administrator deleted: card details, reason, who and when (no direct access; written by `admin_delete_card`) |
+| `ai_checks` | Time of each AI check per student (no direct access; `take_ai_check` counts them for the hourly limit and removes rows older than a day) |
 
 ## Rules enforced by the database
 
@@ -64,11 +66,12 @@ Supabase asks for confirmation before destructive statements (`DROP`, `DELETE`).
 - Topic texts are required, at most 150 characters (same as the Create form)
 - The two subjects of a card must differ
 - A card's `id` and `created_at` are set by the database; the first 8 characters of the id (the link code) are unique
-- Status, contact method, role, year and category only accept the listed values
+- Status (`active`, `completed`, `archived`, `pending`), contact method, role, year and category only accept the listed values
 
 **Access (Row Level Security, phase 2)**
 - Nothing is readable or callable without signing in, except `get_card_preview` (link previews: subjects, topics, first name + initial, major, year of an active card)
-- Students create cards only as themselves; cards change only through `update_my_card` / `set_my_card_status` / `delete_my_card`
+- Students do not write cards themselves: the server (`/api/cards`, service role) creates them and changes their topics and files after the AI check (`20261102120000_ai_moderation.sql`). Students switch their own cards on / off (`set_my_card_status`, not while `pending`), delete them (`delete_my_card`) and remove their files
+- A `pending` card (the AI could not check it) is visible only to its author until an administrator approves it (`admin_approve_card`) or deletes it
 - The profile row is read-only; it changes only through functions (avatar, Telegram)
 - Other students' rows: only id, name, major, year and photo path; e-mail and Telegram only through `get_post_contacts`, `get_student_profile`, `get_telegram_handles` (every linked handle is visible to signed-in students)
 - `search_history`, `favorites` and every `*_my_*` function act only on the signed-in student

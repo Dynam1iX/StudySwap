@@ -11,6 +11,7 @@ const STATUS_VIEW: Record<PostStatus, { dot: string; text: string }> = {
   active: { dot: 'var(--color-success)', text: 'var(--color-success)' },
   completed: { dot: 'var(--color-brand-ink)', text: 'var(--color-brand-ink)' },
   archived: { dot: 'var(--color-placeholder)', text: 'var(--color-muted)' },
+  pending: { dot: 'var(--color-warning)', text: 'var(--color-warning)' },
 };
 
 interface CardHalfProps {

@@ -30,10 +30,13 @@ export function AttachmentsField({
   items,
   onChange,
   disabled = false,
+  flagged = null,
 }: {
   items: AttachmentItem[];
   onChange: (items: AttachmentItem[]) => void;
   disabled?: boolean;
+  /** A file the AI check objected to: outlined in red, with the fix under the grid. */
+  flagged?: { key: string; message: string; shakeKey: number } | null;
 }) {
   const t = useT();
   const inputId = useId();
@@ -94,7 +97,14 @@ export function AttachmentsField({
           const { kind, name } = item.existing ?? item.prepared;
           const preview = item.existing ? urls[item.existing.path] : item.prepared.previewUrl;
           return (
-            <li key={item.key} className="relative aspect-square animate-pop motion-reduce:animate-none">
+            <li
+              key={flagged?.key === item.key ? `${item.key}-${flagged.shakeKey}` : item.key}
+              className={`relative aspect-square rounded-2xl motion-reduce:animate-none ${
+                flagged?.key === item.key
+                  ? 'animate-wiggle ring-2 ring-danger ring-offset-2 ring-offset-surface'
+                  : 'animate-pop'
+              }`}
+            >
               {kind === 'image' ? (
                 <span className="block size-full overflow-hidden rounded-2xl border border-line bg-soft">
                   {preview ? (
@@ -167,6 +177,9 @@ export function AttachmentsField({
         <p key={error} className="animate-shake text-xs font-semibold text-danger-ink">
           {error}
         </p>
+      )}
+      {!error && flagged && items.some((item) => item.key === flagged.key) && (
+        <p className="text-xs font-semibold text-danger-ink">{flagged.message}</p>
       )}
     </div>
   );

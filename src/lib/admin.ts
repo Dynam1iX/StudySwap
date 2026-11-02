@@ -1,3 +1,4 @@
+import type { CardFile } from '@/lib/cardFiles';
 import { supabase } from '@/lib/supabase';
 import type { Category, PostStatus } from '@/types/database';
 
@@ -16,6 +17,8 @@ export interface AdminCard {
   author_name: string;
   author_email: string;
   file_count: number;
+  /** Photos / PDFs on the card, oldest first (missing before 20261102120000_ai_moderation runs). */
+  files?: CardFile[];
 }
 
 /** admin_stats(): totals and the three End-term analysis results (see migration 20261101120000_admin). */
@@ -51,6 +54,12 @@ export async function fetchAdminStats(): Promise<AdminStats> {
   const { data, error } = await supabase.rpc('admin_stats');
   if (error) throw error;
   return data as AdminStats;
+}
+
+/** Publishes a card the AI could not check (status 'pending' → 'active'). */
+export async function approveCardAsAdmin(id: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_approve_card', { p_id: id });
+  if (error) throw error;
 }
 
 export async function deleteCardAsAdmin(id: string, reason: DeleteReason): Promise<void> {

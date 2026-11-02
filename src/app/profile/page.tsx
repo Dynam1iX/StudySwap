@@ -1,6 +1,5 @@
 'use client';
 
-import { attachFiles, detachFiles } from '@/lib/cardFiles';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Loader2, LogOut, Pencil, Plus } from 'lucide-react';
@@ -9,7 +8,7 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { MobileShell } from '@/components/layout/MobileShell';
 import { AvatarSheet } from '@/components/profile/AvatarSheet';
 import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
-import { ManageCardSheet, type CardChanges } from '@/components/profile/ManageCardSheet';
+import { ManageCardSheet, type SaveOutcome } from '@/components/profile/ManageCardSheet';
 import { MyCardItem } from '@/components/profile/MyCardItem';
 import { PrivacySheet } from '@/components/profile/PrivacySheet';
 import { ProfileHeaderCard } from '@/components/profile/ProfileHeaderCard';
@@ -24,8 +23,6 @@ import {
   deleteMyCard,
   downloadMyData,
   fetchProfile,
-  setMyCardStatus,
-  updateMyCard,
   type ProfileCard,
   type ProfileData,
 } from '@/lib/profile';
@@ -127,30 +124,11 @@ export default function ProfilePage() {
     showToast(t.telegram.linkedToast);
   };
 
-  const saveCard = async (card: ProfileCard, changes: CardChanges) => {
-    if (changes.neededTopic !== card.neededTopic || changes.offeredTopic !== card.offeredTopic) {
-      await updateMyCard(card.id, changes.neededTopic, changes.offeredTopic);
-    }
-    // Files: removed ones first (frees places), then the new ones.
-    const kept = new Set(changes.files.flatMap((item) => (item.existing ? [item.existing.id] : [])));
-    const removed = card.files.filter((file) => !kept.has(file.id));
-    const added = changes.files.flatMap((item) => (item.prepared ? [item.prepared] : []));
-    if (removed.length > 0) await detachFiles(removed);
-    if (added.length > 0 && state.status === 'ready') {
-      try {
-        await attachFiles(state.data.user.id, card.id, added);
-      } catch (err: unknown) {
-        console.error('Could not upload card files:', err);
-        await load();
-        throw new Error(t.files.uploadError);
-      }
-    }
-    if (changes.active !== (card.status === 'active')) {
-      await setMyCardStatus(card.id, changes.active ? 'active' : 'archived');
-    }
+  /** Manage saved the card (through the AI check, see ManageCardSheet). */
+  const cardSaved = async (outcome: SaveOutcome) => {
     await load();
     setManaging(null);
-    showToast(t.profile.cardUpdated);
+    showToast(outcome === 'pending' ? t.moderation.pendingEdit : t.profile.cardUpdated);
   };
 
   const removeCard = async (card: ProfileCard) => {
@@ -315,7 +293,13 @@ export default function ProfilePage() {
           />
         </>
       )}
-      <ManageCardSheet card={managing} onClose={() => setManaging(null)} onSave={saveCard} onDelete={removeCard} />
+      <ManageCardSheet
+        card={managing}
+        userId={state.status === 'ready' ? state.data.user.id : ''}
+        onClose={() => setManaging(null)}
+        onSaved={cardSaved}
+        onDelete={removeCard}
+      />
       {state.status === 'ready' && (
         <AvatarSheet
           open={avatar.open}

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, Loader2, MailCheck } from 'lucide-react';
 import { CodeInput } from '@/components/auth/CodeInput';
@@ -292,6 +293,17 @@ export default function LoginPage() {
                       {msError}
                     </p>
                   )}
+                  <p className="text-center text-xs leading-[18px] font-medium text-muted">
+                    {t.login.legalBefore}
+                    <Link href="/terms" className="font-semibold text-brand-ink underline underline-offset-2">
+                      {t.login.legalTerms}
+                    </Link>
+                    {t.login.legalAnd}
+                    <Link href="/privacy" className="font-semibold text-brand-ink underline underline-offset-2">
+                      {t.login.legalPrivacy}
+                    </Link>
+                    {t.login.legalAfter}
+                  </p>
                 </div>
               </>
             ) : (

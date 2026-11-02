@@ -8,7 +8,8 @@ export type Category = 'CS & Dev' | 'Mathematics' | 'Humanities' | 'Languages';
 export type ContactMethod = 'telegram' | 'email';
 
 /** barter_posts.status */
-export type PostStatus = 'active' | 'completed' | 'archived';
+/** 'pending': the AI could not check the card, hidden until an administrator approves it. */
+export type PostStatus = 'active' | 'completed' | 'archived' | 'pending';
 
 /** users.role */
 export type UserRole = 'student' | 'moderator' | 'admin';
