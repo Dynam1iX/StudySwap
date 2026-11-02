@@ -27,6 +27,7 @@ npm run dev                  # http://localhost:3000
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only (Vercel → Settings → Environment Variables) | `/api/cards` writes cards after the AI check. Never prefix it with `NEXT_PUBLIC_` |
 | `GEMINI_API_KEY` | Server only | AI check of new and edited cards (Google AI Studio). Missing or failing: cards wait for a moderator |
 | `GEMINI_MODEL` | Server only, optional | Another Gemini model; default `gemini-3.8-flash` |
+| `GEMINI_FALLBACK_MODEL` | Server only, optional | Asked once when the main model answers 503 (overloaded) or 429 (limit); default `gemini-3.5-flash-lite` |
 
 ### AI check of cards
 

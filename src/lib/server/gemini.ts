@@ -3,7 +3,8 @@ import { VIOLATIONS, type Violation, type ViolationField } from '@/lib/moderatio
 
 /**
  * Asks Gemini whether a card may be published. Server only: needs GEMINI_API_KEY.
- * Model: GEMINI_MODEL, default gemini-3.8-flash (text, photos and PDFs in one request).
+ * Model: GEMINI_MODEL, default gemini-3.8-flash (text, photos and PDFs in one request). When it is
+ * overloaded (503) or rate-limited (429), GEMINI_FALLBACK_MODEL (default gemini-3.5-flash-lite) is asked once.
  *
  * The result is never a guess: when Gemini does not give a clear answer (no key, network
  * error, timeout, rate limit, odd reply) it is 'unavailable', and the caller hides the
@@ -14,6 +15,8 @@ const DEFAULT_MODEL = 'gemini-3.8-flash';
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 /** Leaves time for the database writes inside the route's maxDuration. */
 const TIMEOUT_MS = 45_000;
+/** The fallback model only runs after a quick 503 / 429, so it fits into the route's 60 s. */
+const FALLBACK_TIMEOUT_MS = 12_000;
 
 export interface ModerationFile {
   /** 'image/webp' | 'image/jpeg' | 'application/pdf' */
@@ -143,17 +146,14 @@ export function parseVerdict(body: GeminiResponse, fileCount: number): Moderatio
   return { verdict: 'reject', category, field: null, file: null };
 }
 
-export async function moderateCard(input: ModerationInput): Promise<ModerationVerdict> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return { verdict: 'unavailable', reason: 'GEMINI_API_KEY is not set' };
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+/** Asked once when the main model is overloaded (503) or rate-limited (429). */
+const DEFAULT_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+/** Overloaded or out of quota: worth asking the fallback model. */
+const RETRY_STATUSES = new Set([429, 503]);
 
-  const parts: Record<string, unknown>[] = [{ text: cardText(input) }];
-  input.files.forEach((file, index) => {
-    parts.push({ text: `File ${index + 1} (${file.kind === 'pdf' ? 'PDF' : 'photo'}):` });
-    parts.push({ inline_data: { mime_type: file.mimeType, data: file.base64 } });
-  });
+type Attempt = { ok: true; body: GeminiResponse } | { ok: false; reason: string; retry: boolean };
 
+async function askGemini(key: string, model: string, parts: Record<string, unknown>[], main: boolean, timeoutMs: number): Promise<Attempt> {
   let response: Response;
   try {
     response = await fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
@@ -166,29 +166,49 @@ export async function moderateCard(input: ModerationInput): Promise<ModerationVe
         generationConfig: {
           responseMimeType: 'application/json',
           responseJsonSchema: RESPONSE_SCHEMA,
-          thinkingConfig: { thinkingLevel: 'LOW' },
+          // The fallback uses its own default: thinking settings differ between models.
+          ...(main ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}),
           maxOutputTokens: 4096,
         },
       }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: unknown) {
     const reason = err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network error';
-    console.error('AI check failed:', reason, err);
-    return { verdict: 'unavailable', reason };
+    console.error(`AI check failed (${model}):`, reason, err);
+    return { ok: false, reason, retry: false };
   }
-
   if (!response.ok) {
-    // 429 = rate limit (free tier), 5xx = Gemini is down, 400/403 = request or key problem.
+    // 429 = rate limit (free tier), 503 = overloaded, other 5xx = down, 400/403 = request or key problem.
     const detail = (await response.text().catch(() => '')).slice(0, 300);
-    console.error(`AI check failed: HTTP ${response.status}`, detail);
-    return { verdict: 'unavailable', reason: `HTTP ${response.status}` };
+    console.error(`AI check failed (${model}): HTTP ${response.status}`, detail);
+    return { ok: false, reason: `HTTP ${response.status}`, retry: RETRY_STATUSES.has(response.status) };
   }
-
   try {
-    return parseVerdict((await response.json()) as GeminiResponse, input.files.length);
+    return { ok: true, body: (await response.json()) as GeminiResponse };
   } catch (err: unknown) {
-    console.error('AI check failed: unreadable reply', err);
-    return { verdict: 'unavailable', reason: 'unreadable reply' };
+    console.error(`AI check failed (${model}): unreadable reply`, err);
+    return { ok: false, reason: 'unreadable reply', retry: false };
   }
+}
+
+export async function moderateCard(input: ModerationInput): Promise<ModerationVerdict> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { verdict: 'unavailable', reason: 'GEMINI_API_KEY is not set' };
+  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL;
+
+  const parts: Record<string, unknown>[] = [{ text: cardText(input) }];
+  input.files.forEach((file, index) => {
+    parts.push({ text: `File ${index + 1} (${file.kind === 'pdf' ? 'PDF' : 'photo'}):` });
+    parts.push({ inline_data: { mime_type: file.mimeType, data: file.base64 } });
+  });
+
+  let attempt = await askGemini(key, model, parts, true, TIMEOUT_MS);
+  if (!attempt.ok && attempt.retry && fallback !== model) {
+    console.warn(`AI check: ${model} answered ${attempt.reason}, asking ${fallback}`);
+    attempt = await askGemini(key, fallback, parts, false, FALLBACK_TIMEOUT_MS);
+  }
+  if (!attempt.ok) return { verdict: 'unavailable', reason: attempt.reason };
+  return parseVerdict(attempt.body, input.files.length);
 }
