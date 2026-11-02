@@ -13,7 +13,7 @@ import { VIOLATIONS, type Violation, type ViolationField } from '@/lib/moderatio
 const DEFAULT_MODEL = 'gemini-3.8-flash';
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 /** Leaves time for the database writes inside the route's maxDuration. */
-const TIMEOUT_MS = 25_000;
+const TIMEOUT_MS = 45_000;
 
 export interface ModerationFile {
   /** 'image/webp' | 'image/jpeg' | 'application/pdf' */
@@ -166,7 +166,7 @@ export async function moderateCard(input: ModerationInput): Promise<ModerationVe
         generationConfig: {
           responseMimeType: 'application/json',
           responseJsonSchema: RESPONSE_SCHEMA,
-          thinkingConfig: { thinkingLevel: 'LOW' },
+          thinkingConfig: { thinkingLevel: 'MINIMAL' },
           maxOutputTokens: 4096,
         },
       }),

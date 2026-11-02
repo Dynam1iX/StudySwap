@@ -14,7 +14,7 @@ import {
 } from '@/lib/server/cards';
 import { supabaseAdmin, userFromRequest } from '@/lib/server/supabaseAdmin';
 
-/** The AI check takes a few seconds; Gemini itself is cut off after 25 s. */
+/** The AI check takes a few seconds; Gemini itself is cut off after 45 s. */
 export const maxDuration = 60;
 
 /**
