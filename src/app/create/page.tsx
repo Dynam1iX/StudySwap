@@ -423,7 +423,7 @@ export default function CreateBarterPage() {
       </div>
 
       {(rejection || done === 'pending') && (
-        <div className="px-4 pt-2 lg:ml-auto lg:max-w-[560px]">
+        <div className="px-4 pt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-2">
           {done === 'pending' ? (
             <PendingNotice text={t.moderation.pendingCreate} />
           ) : (
