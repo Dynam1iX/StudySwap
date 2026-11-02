@@ -7,7 +7,7 @@ Peer-to-peer academic barter platform for AITU students: a student offers help w
 ## Getting started
 
 ```bash
-cp .env.example .env.local   # then fill in the Supabase URL and anon key
+cp .env.example .env.local   # then fill in the Supabase URL and anon key (+ server keys, below)
 npm install
 npm run dev                  # http://localhost:3000
 ```
@@ -18,6 +18,25 @@ npm run dev                  # http://localhost:3000
 | `npm run build` | Production build |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
+
+### Environment variables
+
+| Variable | Where | What for |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server | Supabase project and its public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only (Vercel → Settings → Environment Variables) | `/api/cards` writes cards after the AI check. Never prefix it with `NEXT_PUBLIC_` |
+| `GEMINI_API_KEY` | Server only | AI check of new and edited cards (Google AI Studio). Missing or failing: cards wait for a moderator |
+| `GEMINI_MODEL` | Server only, optional | Another Gemini model; default `gemini-3.8-flash` |
+
+### AI check of cards
+
+Before a card is published, and when its topics or files are edited, `/api/cards` sends the topics, the subject names and the attached photos / PDFs to Gemini. It rejects four kinds of content: swearing / insults / 18+ / violence, money and advertising, academic dishonesty (doing work or tests for someone, leaked answers; explaining is allowed), and spam or text unrelated to the subject.
+
+- **Allowed:** the card is published (or the edit saved).
+- **Rejected:** nothing is saved; the student sees a fixed reason for the category in their language, and the topic or file to fix is outlined in red.
+- **AI unavailable** (no key, network error, timeout, rate limit of the free tier, odd reply): the card is saved with status `pending`, visible only to its author ("Under review") until an administrator approves or deletes it in `/admin`.
+
+Students cannot write cards directly any more (see `supabase/migrations/20261102120000_ai_moderation.sql`), so the check cannot be skipped. Logic: `src/lib/server/gemini.ts` (prompt and reply), `src/lib/server/cards.ts` (limits, files), `src/app/api/cards/` (routes), `src/lib/publish.ts` (browser side).
 
 ## Project structure
 
@@ -33,7 +52,8 @@ src/
     c/[slug]/             /c/<subjects>-<code>  A card's own link: opens the Feed with its details; opengraph-image draws the card for chat previews
     search/               /search   Search: categories, filters, recent searches, results
     favorites/            /favorites Liked cards, with Undo
-    admin/                /admin    Administrators only: statistics (End-term analysis) and moderation (delete a card with a reason)
+    admin/                /admin    Administrators only: statistics (End-term analysis) and moderation (approve a card waiting for a check, delete a card with a reason)
+    api/cards/            POST /api/cards (publish) and PATCH /api/cards/<id> (edit): AI check with Gemini, then the write (server only)
     layout.tsx            Fonts, metadata
     globals.css           Design tokens (colours, fonts, animations)
   components/
@@ -44,6 +64,7 @@ src/
     feed/ create/ profile/ search/ favorites/  Components used by one page only
     files/                AttachmentsField (pick up to 3 photos / PDFs of tasks), TaskFiles (thumbnails in the swap window, full-screen photo viewer)
     student/              StudentLink (avatar + name → /u/<id>, avatar flies into the header), another student's page parts
+    moderation/           AiCheck: button label and scanner line during the AI check, rejection and "sent to a moderator" notices
   lib/
     supabase.ts           Supabase client
     categoryPalette.ts    Colours for each subject category (the only place they live)
@@ -52,7 +73,10 @@ src/
     student.ts            Another student's page: get_student_profile, their cards, matching subjects, avatar view transition
     favorites.ts          Likes: Supabase functions + useFavoriteIds (shared by Feed and Search)
     avatar.ts             Profile photos: crop to 256×256 WebP/JPEG, upload, public URL
-    cardFiles.ts          Files on a card: compress photos (≤2000 px WebP/JPEG), upload, attach / detach, signed links
+    cardFiles.ts          Files on a card: compress photos (≤2000 px WebP/JPEG), upload to the student's folder, signed links
+    publish.ts            Publish / edit a card through /api/cards; useFileUploads (upload each file once per form)
+    moderation.ts         Shapes shared by the browser and /api/cards (rule categories, requests, answers)
+    server/               Server only: supabaseAdmin (service role), gemini (AI check), cards (request checks, file rows)
     format.ts             Small text helpers (initials, short names)
     auth.ts               Sign-in: e-mail codes, Microsoft, current student, complete profile
     telegram.ts           Telegram linking through the bot: link token, status, unlink

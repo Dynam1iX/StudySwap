@@ -160,15 +160,6 @@ export function degreeLabel(t: Messages, degree: DegreeLevel): string {
   return t.degree[degree] ?? t.degree.Undergraduate;
 }
 
-export async function updateMyCard(id: string, neededTopic: string, offeredTopic: string): Promise<void> {
-  const { error } = await supabase.rpc('update_my_card', {
-    p_id: id,
-    p_description: neededTopic,
-    p_offered_description: offeredTopic,
-  });
-  if (error) throw error;
-}
-
 export async function setMyCardStatus(id: string, status: 'active' | 'archived'): Promise<void> {
   const { error } = await supabase.rpc('set_my_card_status', { p_id: id, p_status: status });
   if (error) throw error;

@@ -53,6 +53,12 @@ export async function fetchAdminStats(): Promise<AdminStats> {
   return data as AdminStats;
 }
 
+/** Publishes a card the AI could not check (status 'pending' → 'active'). */
+export async function approveCardAsAdmin(id: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_approve_card', { p_id: id });
+  if (error) throw error;
+}
+
 export async function deleteCardAsAdmin(id: string, reason: DeleteReason): Promise<void> {
   const { error } = await supabase.rpc('admin_delete_card', { p_id: id, p_reason: reason });
   if (error) throw error;

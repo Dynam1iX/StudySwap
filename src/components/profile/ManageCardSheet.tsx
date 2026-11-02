@@ -1,32 +1,40 @@
 'use client';
 
-import { useId, useState } from 'react';
-import { Loader2, Trash2, X } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+import { Clock, Loader2, Trash2, X } from 'lucide-react';
 import { TOPICS_MAX_LENGTH } from '@/components/create/TopicsField';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { AttachmentsField, itemsFromFiles, type AttachmentItem } from '@/components/files/AttachmentsField';
+import {
+  CheckingLabel,
+  RejectionNotice,
+  ScanOverlay,
+  useFixHint,
+  type CheckPhase,
+} from '@/components/moderation/AiCheck';
 import { paletteFor } from '@/lib/categoryPalette';
-import type { ProfileCard } from '@/lib/profile';
+import { setMyCardStatus, type ProfileCard } from '@/lib/profile';
+import { editCard, useFileUploads, type Rejection } from '@/lib/publish';
+import type { UploadedFile } from '@/lib/moderation';
+import { playSound } from '@/lib/sound';
 import { useT } from '@/i18n';
 
-export interface CardChanges {
-  neededTopic: string;
-  offeredTopic: string;
-  active: boolean;
-  /** Files kept and newly picked ("Needs help" side). */
-  files: AttachmentItem[];
-}
+/** saved: the changes are live. pending: the AI could not check them, a moderator will. */
+export type SaveOutcome = 'saved' | 'pending';
 
 interface ManageCardSheetProps {
   /** The card to manage, or null when the sheet is closed. */
   card: ProfileCard | null;
+  /** Signed-in student: new files are uploaded to their folder. */
+  userId: string;
   onClose: () => void;
-  onSave: (card: ProfileCard, changes: CardChanges) => Promise<void>;
+  /** After a save: reload the cards, close the sheet, say so. */
+  onSaved: (outcome: SaveOutcome) => Promise<void>;
   onDelete: (card: ProfileCard) => Promise<void>;
 }
 
 /** Manage one of my cards: edit both topic texts, active ⇄ inactive, delete. Subjects stay fixed. */
-export function ManageCardSheet({ card, onClose, onSave, onDelete }: ManageCardSheetProps) {
+export function ManageCardSheet({ card, userId, onClose, onSaved, onDelete }: ManageCardSheetProps) {
   const t = useT();
   const titleId = useId();
   // Keep the last card on screen while the sheet animates out.
@@ -61,7 +69,9 @@ export function ManageCardSheet({ card, onClose, onSave, onDelete }: ManageCardS
       }
     >
       {/* key: a fresh form every time the sheet opens */}
-      {data && <ManageForm key={`${data.id}-${session}`} card={data} onSave={onSave} onDelete={onDelete} />}
+      {data && (
+        <ManageForm key={`${data.id}-${session}`} card={data} userId={userId} onSaved={onSaved} onDelete={onDelete} />
+      )}
     </BottomSheet>
   );
 }
@@ -81,17 +91,30 @@ function SubjectLine({ label, card, side }: { label: string; card: ProfileCard; 
   );
 }
 
-function TopicInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TopicInput({
+  label,
+  value,
+  onChange,
+  error = null,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** The AI check objected to this text: red outline and the fix under it. */
+  error?: string | null;
+}) {
   const near = value.length >= TOPICS_MAX_LENGTH - 20;
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className={`flex flex-col gap-1.5 ${error ? 'animate-shake motion-reduce:animate-none' : ''}`}>
       <span className="text-[14px] font-bold text-ink">{label}</span>
       <span className="relative">
         <textarea
           value={value}
           onChange={(event) => onChange(event.target.value.slice(0, TOPICS_MAX_LENGTH))}
           rows={2}
-          className="w-full resize-none rounded-[14px] border border-field p-3 pb-7 text-[16px] leading-relaxed font-semibold text-ink outline-none transition focus:border-brand-from sm:text-[14px]"
+          className={`w-full resize-none rounded-[14px] border p-3 pb-7 text-[16px] leading-relaxed font-semibold text-ink outline-none transition sm:text-[14px] ${
+            error ? 'border-danger ring-2 ring-red-100' : 'border-field focus:border-brand-from'
+          }`}
         />
         <span
           className={`absolute right-3 bottom-2 text-[12px] font-semibold select-none ${near ? 'text-amber-600' : 'text-muted'}`}
@@ -99,17 +122,20 @@ function TopicInput({ label, value, onChange }: { label: string; value: string; 
           {value.length} / {TOPICS_MAX_LENGTH}
         </span>
       </span>
+      {error && <span className="text-[12px] font-semibold text-danger">{error}</span>}
     </label>
   );
 }
 
 function ManageForm({
   card,
-  onSave,
+  userId,
+  onSaved,
   onDelete,
 }: {
   card: ProfileCard;
-  onSave: ManageCardSheetProps['onSave'];
+  userId: string;
+  onSaved: ManageCardSheetProps['onSaved'];
   onDelete: ManageCardSheetProps['onDelete'];
 }) {
   const t = useT();
@@ -120,6 +146,19 @@ function ManageForm({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Uploading new files, then the AI check of the new texts and files. */
+  const [phase, setPhase] = useState<CheckPhase>('idle');
+  const [rejection, setRejection] = useState<Rejection | null>(null);
+  const [rejectCount, setRejectCount] = useState(0);
+  const uploads = useFileUploads();
+  const fixHint = useFixHint();
+  const pending = card.status === 'pending';
+
+  // Files taken out of the form after an attempt: their uploads are removed.
+  const { keepOnly } = uploads;
+  useEffect(() => {
+    keepOnly(files.flatMap((item) => (item.prepared ? [item.prepared.key] : [])));
+  }, [files, keepOnly]);
 
   const filesChanged =
     files.length !== card.files.length || files.some((item, index) => item.existing?.id !== card.files[index]?.id);
@@ -130,18 +169,66 @@ function ManageForm({
     filesChanged;
   const valid = neededTopic.trim().length > 0 && offeredTopic.trim().length > 0;
 
+  const save = async () => {
+    const needed = neededTopic.trim();
+    const offered = offeredTopic.trim();
+    const prepared = files.flatMap((item) => (item.prepared ? [item.prepared] : []));
+    const kept = new Set(files.flatMap((item) => (item.existing ? [item.existing.id] : [])));
+    const removeFiles = card.files.filter((file) => !kept.has(file.id)).map((file) => file.id);
+    const textChanged = needed !== card.neededTopic || offered !== card.offeredTopic;
+
+    let outcome: SaveOutcome = 'saved';
+    if (textChanged || prepared.length > 0 || removeFiles.length > 0) {
+      let uploaded: UploadedFile[] = [];
+      if (prepared.length > 0) {
+        setPhase('uploading');
+        try {
+          uploaded = await uploads.upload(userId, prepared);
+        } catch (err: unknown) {
+          console.error('Could not upload card files:', err);
+          throw new Error(t.files.uploadError);
+        }
+      }
+      // Only new texts and new files are checked; removing a file needs no check.
+      setPhase(textChanged || prepared.length > 0 ? 'checking' : 'idle');
+      const answer = await editCard(card.id, { neededTopic: needed, offeredTopic: offered, files: uploaded, removeFiles });
+      if (answer.result === 'rejected') {
+        const fileKey = answer.field === 'file' && answer.file !== null ? (prepared[answer.file]?.key ?? null) : null;
+        setRejection({ category: answer.category, field: answer.field, fileKey });
+        setRejectCount((count) => count + 1);
+        playSound('error');
+        return;
+      }
+      if (answer.result === 'error') throw new Error(t.moderation.errors[answer.error]);
+      uploads.settle();
+      if (answer.result === 'pending') outcome = 'pending';
+    }
+    setPhase('idle');
+    // A card waiting for the moderator cannot be switched on or off.
+    if (outcome === 'saved' && !pending && active !== (card.status === 'active')) {
+      await setMyCardStatus(card.id, active ? 'active' : 'archived');
+    }
+    await onSaved(outcome);
+  };
+
   const run = async (kind: 'save' | 'delete') => {
     setBusy(kind);
     setError(null);
+    setRejection(null);
     try {
-      if (kind === 'save') await onSave(card, { neededTopic: neededTopic.trim(), offeredTopic: offeredTopic.trim(), active, files });
+      if (kind === 'save') await save();
       else await onDelete(card);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t.common.somethingWrong);
     } finally {
       setBusy(null);
+      setPhase('idle');
     }
   };
+
+  const flaggedNumber =
+    rejection?.fileKey != null ? files.findIndex((item) => item.key === rejection.fileKey) + 1 || null : null;
+  const fix = fixHint(rejection, flaggedNumber);
 
   return (
     <div className="flex flex-col gap-4 px-6 pt-2 pb-10">
@@ -151,11 +238,48 @@ function ManageForm({
       </div>
       <p className="-mt-2 text-xs font-medium text-muted">{t.manage.subjectsFixed}</p>
 
-      <TopicInput label={t.create.neededTopics} value={neededTopic} onChange={setNeededTopic} />
-      <AttachmentsField items={files} onChange={setFiles} disabled={busy !== null} />
-      <TopicInput label={t.manage.offeredTopics} value={offeredTopic} onChange={setOfferedTopic} />
+      {/* key: the flagged field shakes again on every rejection. Scanner line during the check. */}
+      <div key={`fields-${rejectCount}`} className="relative -mx-2 flex flex-col gap-4 rounded-2xl px-2 py-1">
+        <TopicInput
+          label={t.create.neededTopics}
+          value={neededTopic}
+          onChange={(value) => {
+            setNeededTopic(value);
+            if (rejection?.field === 'needed') setRejection(null);
+          }}
+          error={rejection?.field === 'needed' ? t.moderation.fix.needed : null}
+        />
+        <AttachmentsField
+          items={files}
+          onChange={(items) => {
+            setFiles(items);
+            if (rejection?.fileKey && !items.some((item) => item.key === rejection.fileKey)) setRejection(null);
+          }}
+          disabled={busy !== null}
+          flagged={rejection?.fileKey && fix ? { key: rejection.fileKey, message: fix, shakeKey: rejectCount } : null}
+        />
+        <TopicInput
+          label={t.manage.offeredTopics}
+          value={offeredTopic}
+          onChange={(value) => {
+            setOfferedTopic(value);
+            if (rejection?.field === 'offered') setRejection(null);
+          }}
+          error={rejection?.field === 'offered' ? t.moderation.fix.offered : null}
+        />
+        <ScanOverlay active={phase === 'checking'} />
+      </div>
 
-      {/* Active ⇄ inactive */}
+      {/* Active ⇄ inactive; a card waiting for the moderator has no switch. */}
+      {pending ? (
+        <div className="flex items-center gap-3 rounded-2xl bg-soft px-4 py-3">
+          <Clock aria-hidden className="size-5 shrink-0 text-warning" strokeWidth={2.4} />
+          <div className="flex flex-col">
+            <span className="text-[15px] font-bold text-ink">{t.profile.status.pending}</span>
+            <span className="text-xs font-medium text-muted">{t.moderation.pendingHint}</span>
+          </div>
+        </div>
+      ) : (
       <div className="flex items-center justify-between gap-4 rounded-2xl bg-soft px-4 py-3">
         <div className="flex flex-col">
           <span className="text-[15px] font-bold text-ink">{active ? t.profile.status.active : t.profile.status.archived}</span>
@@ -180,6 +304,9 @@ function ManageForm({
           />
         </button>
       </div>
+      )}
+
+      {rejection && <RejectionNotice key={rejectCount} rejection={rejection} fix={fix} edit />}
 
       {error && (
         <p className="animate-shake rounded-xl border border-danger-line bg-danger-soft p-3 text-xs font-semibold text-danger-ink">
@@ -191,10 +318,19 @@ function ManageForm({
         type="button"
         onClick={() => run('save')}
         disabled={!changed || !valid || busy !== null}
-        className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-brand-fill-from to-brand-fill-to text-base font-bold text-white shadow-[0_8px_20px_rgba(200,40,140,0.28)] transition active:scale-[0.98] disabled:cursor-default disabled:opacity-50"
+        aria-busy={phase !== 'idle'}
+        className={`flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl text-base font-bold text-white shadow-[0_8px_20px_rgba(200,40,140,0.28)] transition active:scale-[0.98] disabled:cursor-default ${
+          phase === 'checking' ? 'ai-checking' : 'bg-linear-to-r from-brand-fill-from to-brand-fill-to'
+        } ${busy === 'save' ? '' : 'disabled:opacity-50'}`}
       >
-        {busy === 'save' && <Loader2 className="size-5 animate-spin" />}
-        {t.manage.save}
+        {phase !== 'idle' ? (
+          <CheckingLabel phase={phase} />
+        ) : (
+          <>
+            {busy === 'save' && <Loader2 className="size-5 animate-spin" />}
+            {t.manage.save}
+          </>
+        )}
       </button>
 
       {/* Delete, with a second step */}

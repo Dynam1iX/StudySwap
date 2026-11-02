@@ -1,4 +1,5 @@
 import type { Category, ContactMethod, DegreeLevel, PostStatus } from '@/types/database';
+import type { CardErrorCode, Violation } from '@/lib/moderation';
 
 /** English texts. Russian and Kazakh (ru.ts, kz.ts) follow the same shape. */
 export const en = {
@@ -181,6 +182,7 @@ export const en = {
       active: 'Active',
       completed: 'Completed',
       archived: 'Inactive',
+      pending: 'Under review',
     } satisfies Record<PostStatus, string> as Record<PostStatus, string>,
     settings: 'Settings',
     logOut: 'Log out',
@@ -232,6 +234,37 @@ export const en = {
     keep: 'Keep it',
     delete: 'Delete',
     deleteCard: 'Delete card',
+  },
+
+  /** AI check before a card is published or edited (/api/cards). */
+  moderation: {
+    uploading: 'Uploading files…',
+    checking: 'AI is checking the card…',
+    rejectedTitle: 'The card was not published',
+    rejectedEditTitle: 'The changes were not saved',
+    reasons: {
+      abuse: 'StudySwap does not allow swearing, insults, 18+ or violent content.',
+      money: 'StudySwap is free: no prices, payment or advertising.',
+      cheating: 'You can ask for an explanation, not for someone to do the work or take a test for you.',
+      spam: 'The text or file does not look like a study request for this subject.',
+    } satisfies Record<Violation, string> as Record<Violation, string>,
+    fix: {
+      needed: 'Fix the topics you need help with',
+      offered: 'Fix the topics you can teach',
+      file: (index: number) => `Remove or replace file ${index}`,
+    },
+    sentForReview: 'Sent for review',
+    pendingCreate: 'The AI check is not available right now, so a moderator will look at your card. It appears in the Feed after approval.',
+    pendingEdit: 'Sent to a moderator: the card is hidden until approval',
+    pendingHint: 'A moderator is checking this card. You can switch it on after approval.',
+    errors: {
+      auth: 'Your session has expired. Sign in again.',
+      profile: 'Complete your profile first.',
+      invalid: 'Some fields are not valid. Check the form and try again.',
+      files: 'Could not read the attached files. Remove them and add them again.',
+      'not-found': 'This card no longer exists.',
+      server: 'Could not save. Try again.',
+    } satisfies Record<CardErrorCode, string> as Record<CardErrorCode, string>,
   },
 
   files: {
@@ -469,6 +502,11 @@ export const en = {
     deleted: 'Card deleted. Nobody sees it any more.',
     deleteError: 'Could not delete the card',
     empty: 'No cards match the search.',
+    pendingTitle: (count: number) => `Waiting for a check: ${count}`,
+    pendingHint: 'The AI could not check these cards. Approve or delete them.',
+    approve: 'Approve',
+    approved: 'Card approved: it is in the Feed now.',
+    approveError: 'Could not approve the card',
     showMore: 'Show more',
   },
 };
