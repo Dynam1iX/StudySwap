@@ -166,7 +166,7 @@ export async function moderateCard(input: ModerationInput): Promise<ModerationVe
         generationConfig: {
           responseMimeType: 'application/json',
           responseJsonSchema: RESPONSE_SCHEMA,
-          thinkingConfig: { thinkingLevel: 'MINIMAL' },
+          thinkingConfig: { thinkingLevel: 'LOW' },
           maxOutputTokens: 4096,
         },
       }),
