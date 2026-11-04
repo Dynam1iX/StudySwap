@@ -8,6 +8,8 @@
 --       what the student typed, as before.
 --    The app shows a) and b) as read-only fields; the database ignores the typed name then.
 -- 2. The teacher who signed up with a made-up name gets the name from their e-mail.
+-- 3. Before the launch in AITU: removes the generated demo data (40 demo students
+--    0000NN@astanait.edu.kz and their cards and likes; same as seed/demo_data_remove.sql).
 
 -- 1 -------------------------------------------------------------------------
 create or replace function public.complete_my_profile(p_full_name text, p_major text, p_study_year integer, p_degree text)
@@ -88,6 +90,14 @@ $$;
 
 -- 2 -------------------------------------------------------------------------
 update public.users set full_name = 'Bakyt Bakayeva' where email = 'bakyt.bakayeva@astanait.edu.kz';
+
+-- 3 -------------------------------------------------------------------------
+delete from public.favorites
+ where post_id in (select b.id from public.barter_posts b join public.users u on u.id = b.author_id
+                   where u.email like '0000__@astanait.edu.kz');
+delete from public.barter_posts
+ where author_id in (select id from public.users where email like '0000__@astanait.edu.kz');
+delete from public.users where email like '0000__@astanait.edu.kz';
 
 -- Record this migration in the history (applied from the SQL Editor).
 insert into supabase_migrations.schema_migrations (version, name)
