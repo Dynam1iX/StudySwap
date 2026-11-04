@@ -48,7 +48,7 @@ src/
   app/                    Pages (one folder per route)
     page.tsx              /         Feed
     login/                /login    Sign in: code to any @astanait.edu.kz e-mail, or Microsoft (AITU accounts)
-    welcome/              /welcome  Complete your profile (first sign-in; Microsoft fills in the name; name e-mail = Teacher, no year)
+    welcome/              /welcome  Complete your profile (first sign-in; name fixed from the Microsoft account or a teacher's name e-mail, typed only by students signing in with a code; name e-mail = Teacher, no year)
     create/               /create   Create a barter offer
     profile/              /profile  Student profile; profile/edit: Telegram + student details
     u/[id]/               /u/<id>   Another student's profile: contact, matching subjects, active cards, share link
@@ -68,6 +68,7 @@ src/
     feed/ create/ profile/ search/ favorites/  Components used by one page only
     files/                AttachmentsField (pick up to 3 photos / PDFs of tasks), TaskFiles (thumbnails in the swap window, full-screen photo viewer)
     student/              StudentLink (avatar + name → /u/<id>, avatar flies into the header), another student's page parts
+    help/                 HelpSheet ("?": how-to video), WelcomeTutorial (Feed, once after each sign-in: Watch / Close)
     legal/                LegalPage: Terms of Use / Privacy Policy in the interface language
     moderation/           AiCheck: button label and scanner line during the AI check, rejection and "sent to a moderator" notices
   lib/

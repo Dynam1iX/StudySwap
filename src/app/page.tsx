@@ -9,6 +9,7 @@ import { SwapDetailModal } from '@/components/feed/SwapDetailModal';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { MobileShell } from '@/components/layout/MobileShell';
+import { WelcomeTutorial } from '@/components/help/WelcomeTutorial';
 import { useFavoriteIds } from '@/lib/favorites';
 import { fetchFeed, type FeedPost } from '@/lib/feed';
 import type { Subject } from '@/types/database';
@@ -155,6 +156,7 @@ export default function FeedPage() {
 
       <SwapDetailModal post={activeSwap} onClose={() => setActiveSwap(null)} />
 
+      <WelcomeTutorial />
     </MobileShell>
   );
 }

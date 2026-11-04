@@ -375,6 +375,14 @@ export const en = {
     unlinkError: 'Could not unlink Telegram',
   },
 
+  /** Feed, once after each sign-in: offers the how-to video. */
+  tutorial: {
+    title: 'Welcome to StudySwap!',
+    text: 'New here? A short video shows how to find a study partner and create your first barter card.',
+    watch: 'Watch the tutorial',
+    close: 'Close',
+  },
+
   help: {
     button: 'How it works',
     title: 'How StudySwap works',
@@ -477,6 +485,8 @@ export const en = {
     missingMajor: 'Choose your major',
     missingYear: 'Choose your year of study',
     missingDegree: "Choose Bachelor's or Master's",
+    nameFromMicrosoft: 'Taken from your Microsoft account. It cannot be changed.',
+    nameFromEmail: 'Taken from your university e-mail. It cannot be changed.',
     teacherByEmail: "Set by your e-mail: name e-mails belong to teachers.",
     checkCarefully: 'Check them carefully: you cannot change these details later.',
     start: 'Start swapping',

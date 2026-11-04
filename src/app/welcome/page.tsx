@@ -5,7 +5,15 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ChevronDown, Loader2, Lock } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { MobileShell } from '@/components/layout/MobileShell';
-import { completeProfile, currentEmail, isTeacherEmail, nameFromAccount, signOut, type NewProfile } from '@/lib/auth';
+import {
+  completeProfile,
+  currentEmail,
+  isTeacherEmail,
+  nameFromAccount,
+  nameFromEmail,
+  signOut,
+  type NewProfile,
+} from '@/lib/auth';
 import { PROGRAM_GROUPS, STUDY_YEARS } from '@/lib/search';
 import { playSound } from '@/lib/sound';
 import type { StudyYear } from '@/types/database';
@@ -17,6 +25,10 @@ const DEGREES: NewProfile['degree'][] = ['Undergraduate', "Master's Degree"];
 
 const FIELD =
   'h-12 w-full rounded-xl border border-field bg-surface px-4 text-[16px] font-semibold text-ink outline-none transition-[border-color,box-shadow] placeholder:text-placeholder focus:border-brand-from focus:shadow-[0_0_0_3px_rgba(173,70,255,0.15)] sm:text-[15px]';
+
+/** A name taken from the account: shown, not editable. */
+const FIELD_FIXED =
+  'h-12 w-full cursor-default rounded-xl border border-transparent bg-soft px-4 text-[16px] font-bold text-ink outline-none sm:text-[15px]';
 
 function Field({ label, children, delay }: { label: string; children: ReactNode; delay: number }) {
   return (
@@ -83,16 +95,34 @@ export default function WelcomePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(0);
+  /**
+   * Where a fixed name came from: the Microsoft account, or a teacher's name e-mail
+   * (bakyt.bakayeva@… → Bakyt Bakayeva). Then the name cannot be edited; the database
+   * takes it from the same place whatever is sent (complete_my_profile).
+   */
+  const [nameSource, setNameSource] = useState<'microsoft' | 'email' | null>(null);
 
   useEffect(() => {
-    void currentEmail().then(setEmail);
-    // Signed in with Microsoft: start from the name on the account (still editable).
-    void nameFromAccount().then((name) => {
-      if (!name) return;
-      setFirstName((current) => current || name.firstName.slice(0, NAME_MAX));
-      setLastName((current) => current || name.lastName.slice(0, NAME_MAX));
+    let cancelled = false;
+    void Promise.all([currentEmail(), nameFromAccount()]).then(([address, account]) => {
+      if (cancelled) return;
+      setEmail(address);
+      const fromEmail = address && isTeacherEmail(address) ? nameFromEmail(address) : null;
+      const fixed = account?.firstName && account.lastName ? account : fromEmail;
+      if (!fixed) {
+        // Only a first name on the account: a hint, still editable.
+        if (account?.firstName) setFirstName((current) => current || account.firstName.slice(0, NAME_MAX));
+        return;
+      }
+      setFirstName(fixed.firstName.slice(0, NAME_MAX));
+      setLastName(fixed.lastName.slice(0, NAME_MAX));
+      setNameSource(fixed === account ? 'microsoft' : 'email');
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+  const nameFixed = nameSource !== null;
 
   // Decided by the e-mail: 6 digits = student, a name = teacher (no year, no choice).
   const role = email === null ? null : isTeacherEmail(email) ? 'teacher' : 'student';
@@ -155,21 +185,31 @@ export default function WelcomePage() {
             <input
               value={firstName}
               onChange={(event) => setFirstName(event.target.value.slice(0, NAME_MAX))}
+              readOnly={nameFixed}
+              aria-readonly={nameFixed || undefined}
               autoComplete="given-name"
               placeholder={t.welcome.firstPlaceholder}
-              className={FIELD}
+              className={nameFixed ? FIELD_FIXED : FIELD}
             />
           </Field>
           <Field label={t.edit.lastName} delay={100}>
             <input
               value={lastName}
               onChange={(event) => setLastName(event.target.value.slice(0, NAME_MAX))}
+              readOnly={nameFixed}
+              aria-readonly={nameFixed || undefined}
               autoComplete="family-name"
               placeholder={t.welcome.lastPlaceholder}
-              className={FIELD}
+              className={nameFixed ? FIELD_FIXED : FIELD}
             />
           </Field>
         </div>
+        {nameSource && (
+          <p className="-mt-2 flex animate-rise items-center gap-1.5 text-xs font-medium text-muted motion-reduce:animate-none">
+            <Lock aria-hidden className="size-3.5 shrink-0" strokeWidth={2.4} />
+            {nameSource === 'microsoft' ? t.welcome.nameFromMicrosoft : t.welcome.nameFromEmail}
+          </p>
+        )}
 
         <Field label={t.edit.major} delay={140}>
           <span className="relative">
