@@ -118,8 +118,28 @@ export async function nameFromAccount(): Promise<{ firstName: string; lastName: 
   return { firstName: full[0], lastName: full.slice(1).join(' ') };
 }
 
+/** Whose welcome tutorial was already offered on this device (see WelcomeTutorial). */
+export const TUTORIAL_KEY = 'studyswap-tutorial-for';
+
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
+  // The next sign-in on this device sees the welcome tutorial again.
+  try {
+    localStorage.removeItem(TUTORIAL_KEY);
+  } catch {
+    // Storage blocked: nothing to forget.
+  }
+}
+
+/**
+ * A teacher's name from a name e-mail: "bakyt.bakayeva@…" → Bakyt Bakayeva. Null when the
+ * e-mail does not hold a first and a last name. The database does the same (complete_my_profile).
+ */
+export function nameFromEmail(email: string): { firstName: string; lastName: string } | null {
+  const parts = email.split('@')[0].split(/[._-]+/).filter((part) => /^[a-z]+$/i.test(part));
+  if (parts.length < 2) return null;
+  const cap = (part: string) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  return { firstName: cap(parts[0]), lastName: parts.slice(1).map(cap).join(' ') };
 }
 
 /** E-mail of the signed-in student, or null. */

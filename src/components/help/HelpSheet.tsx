@@ -40,7 +40,7 @@ export function HelpButton() {
 }
 
 /** "How StudySwap works": a silent how-to video (with its steps as text) and three illustrated steps. */
-function HelpSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function HelpSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, language } = useI18n();
   const titleId = useId();
   const transcriptId = useId();

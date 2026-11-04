@@ -372,6 +372,13 @@ export const ru: Messages = {
     unlinkError: 'Не удалось отвязать Telegram',
   },
 
+  tutorial: {
+    title: 'Добро пожаловать в StudySwap!',
+    text: 'Впервые здесь? Короткое видео покажет, как найти партнёра по учёбе и создать первую карточку обмена.',
+    watch: 'Смотреть тутор',
+    close: 'Закрыть',
+  },
+
   help: {
     button: 'Как это работает',
     title: 'Как работает StudySwap',
@@ -473,6 +480,8 @@ export const ru: Messages = {
     missingMajor: 'Выберите специальность',
     missingYear: 'Выберите курс',
     missingDegree: "Выберите бакалавриат или магистратуру",
+    nameFromMicrosoft: 'Взято из аккаунта Microsoft. Изменить нельзя.',
+    nameFromEmail: 'Взято из университетской почты. Изменить нельзя.',
     teacherByEmail: "Определено по почте: именная почта — у преподавателей.",
     checkCarefully: 'Проверьте внимательно: эти данные потом изменить нельзя.',
     start: 'Начать обмен',
