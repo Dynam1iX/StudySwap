@@ -78,7 +78,11 @@ export const kz: Messages = {
 
   search: {
     title: 'Іздеу',
-    placeholder: 'Пәнді іздеу, мысалы Calculus',
+    placeholder: 'Пән немесе есім, мысалы Calculus не Әлихан',
+    students: 'Студенттер',
+    openStudent: (name: string) => `Профильді ашу: ${name}`,
+    activeCards: (n: number) => `${n} карточка`,
+    showAllStudents: (n: number) => `Барлығын көрсету (${n})`,
     fieldLabel: 'Пәндерді іздеу',
     clearText: 'Іздеуді тазарту',
     yearFilter: 'Курс',

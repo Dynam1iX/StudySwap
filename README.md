@@ -74,6 +74,7 @@ src/
   lib/
     supabase.ts           Supabase client
     categoryPalette.ts    Colours for each subject category (the only place they live)
+    nameSearch.ts         Name search that forgives spelling and Cyrillic (Алихан = Alikhan); same rules as private.name_key in the database
     search.ts             Search filters, AITU programs, recent-search functions
     cardLink.ts           Card links (/c/...), parsing the code; cardPreview.ts: public preview data for the link picture
     student.ts            Another student's page: get_student_profile, their cards, matching subjects, avatar view transition

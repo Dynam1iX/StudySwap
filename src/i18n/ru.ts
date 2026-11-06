@@ -86,7 +86,11 @@ export const ru: Messages = {
 
   search: {
     title: 'Поиск',
-    placeholder: 'Предмет, например Calculus',
+    placeholder: 'Предмет или имя, например Calculus или Алихан',
+    students: 'Студенты',
+    openStudent: (name: string) => `Открыть профиль: ${name}`,
+    activeCards: (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'карточка' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'карточки' : 'карточек'}`,
+    showAllStudents: (n: number) => `Показать всех (${n})`,
     fieldLabel: 'Поиск по предметам',
     clearText: 'Очистить поиск',
     yearFilter: 'Курс',

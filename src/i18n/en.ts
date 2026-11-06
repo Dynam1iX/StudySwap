@@ -81,7 +81,11 @@ export const en = {
 
   search: {
     title: 'Search',
-    placeholder: 'Search subjects, e.g. Calculus',
+    placeholder: 'Subjects or names, e.g. Calculus or Alikhan',
+    students: 'Students',
+    openStudent: (name: string) => `Open ${name}'s profile`,
+    activeCards: (n: number) => (n === 1 ? '1 card' : `${n} cards`),
+    showAllStudents: (n: number) => `Show all ${n}`,
     fieldLabel: 'Search subjects',
     clearText: 'Clear the search text',
     yearFilter: 'Year',
