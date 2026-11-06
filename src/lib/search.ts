@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { nameKey, nameKeys } from '@/lib/nameSearch';
 import type { FeedPost } from '@/lib/feed';
 import type { Category, StudyYear } from '@/types/database';
 
@@ -71,10 +72,14 @@ function majorMatches(major: string | null | undefined, programLabel: string): b
   return [program.label, ...(program.aliases ?? [])].some((name) => normalize(name) === value);
 }
 
-/** Every word of the query must appear in the card's subjects, codes or topics. */
+/**
+ * Every word of the query must appear in the card's subjects, codes or topics, or in the
+ * author's name (spelling forgiven, Cyrillic too: see nameSearch).
+ */
 function queryMatches(post: FeedPost, query: string): boolean {
   const words = normalize(query).split(' ').filter(Boolean);
   if (words.length === 0) return true;
+  const author = nameKey(post.author?.full_name ?? '');
   const haystack = normalize(
     [
       post.needed?.name,
@@ -87,7 +92,31 @@ function queryMatches(post: FeedPost, query: string): boolean {
       post.offered_description,
     ].join(' '),
   );
-  return words.every((word) => haystack.includes(word));
+  return words.every((word) => {
+    if (haystack.includes(word)) return true;
+    const key = nameKey(word);
+    return key.length >= 2 && author.includes(key);
+  });
+}
+
+/** A student found by name (search_students): what their profile shows anyway. */
+export interface FoundStudent {
+  id: string;
+  full_name: string;
+  major: string | null;
+  study_year: number | null;
+  degree_level: string | null;
+  avatar_path: string | null;
+  active_cards: number;
+}
+
+/** Students whose first or last name matches every word of the query (up to 20). */
+export async function searchStudents(query: string): Promise<FoundStudent[]> {
+  const keys = nameKeys(query);
+  if (keys.length === 0) return [];
+  const { data, error } = await supabase.rpc('search_students', { p_keys: keys });
+  if (error) throw error;
+  return (data ?? []) as FoundStudent[];
 }
 
 export function hasActiveFilters(filters: SearchFilters): boolean {

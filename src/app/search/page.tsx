@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { StudentResults } from '@/components/search/StudentResults';
 import { SwapDetailModal } from '@/components/feed/SwapDetailModal';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -204,6 +205,8 @@ function SearchView() {
         </div>
 
         {showResults ? (
+          <>
+          {filters.query && <StudentResults query={filters.query} />}
           <SearchResults
             key={filtersToSearch(filters)}
             filters={filters}
@@ -214,6 +217,7 @@ function SearchView() {
             onClearFilter={(key) => applyFilters({ ...filters, [key]: null })}
             onClearAll={() => applyFilters(EMPTY_FILTERS)}
           />
+          </>
         ) : (
           <>
             <section className="flex flex-col gap-4">
