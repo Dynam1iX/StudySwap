@@ -26,6 +26,7 @@ import {
   type ProfileCard,
   type ProfileData,
 } from '@/lib/profile';
+import { playSound } from '@/lib/sound';
 import { amIAdmin } from '@/lib/admin';
 import { signOut } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/useIsDesktop';
@@ -128,7 +129,10 @@ export default function ProfilePage() {
   const cardSaved = async (outcome: SaveOutcome) => {
     await load();
     setManaging(null);
-    showToast(outcome === 'pending' ? t.moderation.pendingEdit : t.profile.cardUpdated);
+    if (outcome === 'completed') playSound('publish');
+    showToast(
+      outcome === 'pending' ? t.moderation.pendingEdit : outcome === 'completed' ? t.manage.doneToast : t.profile.cardUpdated,
+    );
   };
 
   const removeCard = async (card: ProfileCard) => {

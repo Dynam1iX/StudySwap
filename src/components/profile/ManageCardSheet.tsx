@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import { Clock, Loader2, Trash2, X } from 'lucide-react';
+import { Clock, Handshake, Loader2, Trash2, X } from 'lucide-react';
 import { TOPICS_MAX_LENGTH } from '@/components/create/TopicsField';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { AttachmentsField, itemsFromFiles, type AttachmentItem } from '@/components/files/AttachmentsField';
@@ -32,7 +32,7 @@ class NoticeError extends Error {
 }
 
 /** saved: the changes are live. pending: the AI could not check them, a moderator will. */
-export type SaveOutcome = 'saved' | 'pending';
+export type SaveOutcome = 'saved' | 'pending' | 'completed';
 
 interface ManageCardSheetProps {
   /** The card to manage, or null when the sheet is closed. */
@@ -156,7 +156,8 @@ function ManageForm({
   const [active, setActive] = useState(card.status === 'active');
   const [files, setFiles] = useState<AttachmentItem[]>(() => itemsFromFiles(card.files));
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
+  const [confirmDone, setConfirmDone] = useState(false);
+  const [busy, setBusy] = useState<'save' | 'delete' | 'done' | null>(null);
   const [error, setError] = useState<{ kind: ErrorKind; text: string } | null>(null);
   /** Uploading new files, then the AI check of the new texts and files. */
   const [phase, setPhase] = useState<CheckPhase>('idle');
@@ -224,12 +225,19 @@ function ManageForm({
     await onSaved(outcome);
   };
 
-  const run = async (kind: 'save' | 'delete') => {
+  /** "Swap done": the card leaves the Feed and counts in Swaps done. */
+  const markDone = async () => {
+    await setMyCardStatus(card.id, 'completed');
+    await onSaved('completed');
+  };
+
+  const run = async (kind: 'save' | 'delete' | 'done') => {
     setBusy(kind);
     setError(null);
     setRejection(null);
     try {
       if (kind === 'save') await save();
+      else if (kind === 'done') await markDone();
       else await onDelete(card);
     } catch (err: unknown) {
       setError(
@@ -305,9 +313,11 @@ function ManageForm({
       ) : (
       <div className="flex items-center justify-between gap-4 rounded-2xl bg-soft px-4 py-3">
         <div className="flex flex-col">
-          <span className="text-[15px] font-bold text-ink">{active ? t.profile.status.active : t.profile.status.archived}</span>
+          <span className="text-[15px] font-bold text-ink">
+            {active ? t.profile.status.active : card.status === 'completed' ? t.profile.status.completed : t.profile.status.archived}
+          </span>
           <span className="text-xs font-medium text-muted">
-            {active ? t.manage.activeHint : t.manage.inactiveHint}
+            {active ? t.manage.activeHint : card.status === 'completed' ? t.manage.completedHint : t.manage.inactiveHint}
           </span>
         </div>
         <button
@@ -327,6 +337,50 @@ function ManageForm({
           />
         </button>
       </div>
+      )}
+
+      {/* Swap done, with a second step (not for a card waiting for the moderator or already done). */}
+      {!pending && card.status !== 'completed' && (
+        <div>
+          {confirmDone ? (
+            <div className="flex animate-pop flex-col gap-3 rounded-2xl bg-brand-soft p-4 motion-reduce:animate-none">
+              <p className="text-sm font-bold text-ink">{t.manage.doneConfirm}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDone(false)}
+                  disabled={busy !== null}
+                  className="h-12 cursor-pointer rounded-xl border border-line-strong bg-surface text-sm font-bold text-ink transition active:scale-[0.98]"
+                >
+                  {t.manage.notYet}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => run('done')}
+                  disabled={busy !== null}
+                  className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-linear-to-r from-brand-fill-from to-brand-fill-to text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+                >
+                  {busy === 'done' ? <Loader2 className="size-4 animate-spin" /> : <Handshake className="size-4" />}
+                  {t.manage.doneYes}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDone(true)}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-brand-from/30 bg-surface p-3 text-left transition hover:bg-brand-soft active:scale-[0.99]"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-brand-from to-brand-to text-white">
+                <Handshake aria-hidden className="size-5" strokeWidth={2.2} />
+              </span>
+              <span className="flex flex-col">
+                <span className="text-[15px] font-bold text-ink">{t.manage.done}</span>
+                <span className="text-xs font-medium text-muted">{t.manage.doneHint}</span>
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       {rejection && <RejectionNotice key={rejectCount} rejection={rejection} fix={fix} edit />}
