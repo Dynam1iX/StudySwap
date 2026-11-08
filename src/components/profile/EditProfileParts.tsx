@@ -1,8 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { Lock, RefreshCw, Unlink } from 'lucide-react';
-import { degreeLabel, type ProfileUser } from '@/lib/profile';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { Check, Loader2, Lock, RefreshCw, Unlink } from 'lucide-react';
+import { BIO_MAX_LENGTH, degreeLabel, saveMyBio, type ProfileUser } from '@/lib/profile';
 import { useT } from '@/i18n';
 
 /** Pieces shared by the Edit profile page (phones) and the Edit profile modal (desktop). */
@@ -104,5 +104,77 @@ export function StudentDetails({ user }: { user: ProfileUser }) {
         {t.edit.readOnlyNote}
       </p>
     </>
+  );
+}
+
+/** Characters as the database counts them (an emoji is one, not two). */
+function chars(text: string): string[] {
+  return Array.from(text);
+}
+
+/** "About me": up to 200 characters, saved with the button (the database checks the length). */
+export function BioSection({
+  bio,
+  onSaved,
+  onError,
+}: {
+  bio: string;
+  onSaved: (bio: string) => void;
+  onError: (message: string) => void;
+}) {
+  const t = useT();
+  const [value, setValue] = useState(bio);
+  const [saving, setSaving] = useState(false);
+  const length = chars(value).length;
+  const changed = value.trim() !== bio.trim();
+  const near = length >= BIO_MAX_LENGTH - 20;
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!changed || saving) return;
+    setSaving(true);
+    try {
+      const saved = await saveMyBio(value);
+      setValue(saved);
+      onSaved(saved);
+    } catch (err: unknown) {
+      console.error('set_my_bio:', err);
+      onError(t.edit.bioError);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-3xl border border-line bg-surface p-4">
+      <textarea
+        value={value}
+        onChange={(event) => setValue(chars(event.target.value).slice(0, BIO_MAX_LENGTH).join(''))}
+        placeholder={t.edit.bioPlaceholder}
+        aria-label={t.edit.bio}
+        rows={3}
+        className="block w-full resize-none rounded-[14px] border border-field bg-surface p-3 text-[16px] leading-relaxed font-semibold text-ink placeholder-placeholder outline-none transition focus:border-brand-from sm:text-[14px]"
+      />
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-medium text-muted">{t.edit.bioHint}</span>
+        <span
+          className={`shrink-0 text-[12px] font-semibold transition-colors duration-300 select-none ${
+            length >= BIO_MAX_LENGTH ? 'text-danger' : near ? 'text-amber-600' : 'text-muted'
+          }`}
+        >
+          {length} / {BIO_MAX_LENGTH}
+        </span>
+      </div>
+      {changed && (
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex h-12 animate-pop cursor-pointer items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-brand-fill-from to-brand-fill-to text-base font-bold text-white transition active:scale-[0.98] disabled:opacity-70 motion-reduce:animate-none"
+        >
+          {saving ? <Loader2 className="size-5 animate-spin" /> : <Check className="size-5" strokeWidth={2.6} />}
+          {saving ? t.edit.bioSaving : t.edit.bioSave}
+        </button>
+      )}
+    </form>
   );
 }

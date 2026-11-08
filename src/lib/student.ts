@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { attachContacts, FEED_POST_SELECT, type FeedAuthor, type FeedPost, type PostContact } from '@/lib/feed';
-import type { ProfileSubject } from '@/lib/profile';
+import { fetchBio, type ProfileSubject } from '@/lib/profile';
 import type { PostStatus } from '@/types/database';
 
 /** Another student as their profile page (/u/[id]) shows them. */
@@ -8,6 +8,8 @@ export interface StudentProfile {
   author: FeedAuthor;
   /** Telegram when the caller may see it, otherwise the university e-mail; null when neither. */
   contact: PostContact | null;
+  /** Their "About me"; '' when empty. */
+  bio: string;
   /** Their active cards, newest first. */
   cards: FeedPost[];
   needsHelp: ProfileSubject[];
@@ -59,7 +61,7 @@ interface MyCardRow {
 
 /** Everything the page needs, or null when there is no such student. */
 export async function fetchStudent(id: string): Promise<StudentProfile | null> {
-  const [studentRes, postsRes, mineRes] = await Promise.all([
+  const [studentRes, postsRes, mineRes, bio] = await Promise.all([
     supabase.rpc('get_student_profile', { p_id: id }).maybeSingle(),
     supabase
       .from('barter_posts')
@@ -68,6 +70,7 @@ export async function fetchStudent(id: string): Promise<StudentProfile | null> {
       .eq('status', 'active')
       .order('created_at', { ascending: false }),
     supabase.rpc('get_my_cards'),
+    fetchBio(id),
   ]);
   if (studentRes.error) throw studentRes.error;
   if (postsRes.error) throw postsRes.error;
@@ -92,6 +95,7 @@ export async function fetchStudent(id: string): Promise<StudentProfile | null> {
     author,
     contact:
       row.contact_method && row.contact ? { method: row.contact_method, value: row.contact.replace(/^@/, '') } : null,
+    bio,
     cards,
     needsHelp: unique(cards.map((card) => card.needed)),
     canTeach: unique(cards.map((card) => card.offered)),

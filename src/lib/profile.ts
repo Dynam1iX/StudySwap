@@ -37,6 +37,32 @@ export interface ProfileUser {
   telegramHandle: string | null;
   /** Storage path of the photo, or null. */
   avatarPath: string | null;
+  /** "About me", up to BIO_MAX_LENGTH characters; '' when empty. */
+  bio: string;
+}
+
+/** Same limit as the check on users.bio (20261108120000_bio.sql). */
+export const BIO_MAX_LENGTH = 200;
+
+/**
+ * A student's "About me" (get_bio). Returns '' when there is none, and also while the
+ * bio migration has not been applied yet, so the profile keeps working either way.
+ */
+export async function fetchBio(userId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('get_bio', { p_id: userId });
+  if (error) {
+    console.warn('get_bio:', error.message);
+    return '';
+  }
+  return typeof data === 'string' ? data : '';
+}
+
+/** Saves the signed-in student's "About me" (set_my_bio trims it; the database checks the length). */
+export async function saveMyBio(bio: string): Promise<string> {
+  const value = bio.trim();
+  const { error } = await supabase.rpc('set_my_bio', { p_bio: value });
+  if (error) throw error;
+  return value;
 }
 
 export interface ProfileData {
@@ -102,9 +128,10 @@ export async function fetchProfile(): Promise<ProfileData | null> {
   const userRow = await fetchMyProfileRow();
   if (!userRow) return null;
 
-  const [{ data: postData, error: postsError }, files] = await Promise.all([
+  const [{ data: postData, error: postsError }, files, bio] = await Promise.all([
     supabase.rpc('get_my_cards'),
     fetchMyCardFiles(),
+    fetchBio(userRow.id),
   ]);
 
   if (postsError) throw postsError;
@@ -143,6 +170,7 @@ export async function fetchProfile(): Promise<ProfileData | null> {
       studyYear: toStudyYear(userRow.study_year),
       telegramHandle: userRow.telegram_handle?.replace(/^@/, '') || null,
       avatarPath: userRow.avatar_path ?? null,
+      bio,
     },
     // No user_subjects table yet, so both lists come from the student's own cards.
     needsHelp: uniqueSubjects(activeCards.map((card) => card.needed)),

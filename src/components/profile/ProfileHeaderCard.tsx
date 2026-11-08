@@ -37,6 +37,12 @@ export function ProfileHeaderCard({ user, avatarUrl, onEditAvatar, avatarBusy, o
         </div>
       </div>
 
+      {user.bio && (
+        <p className="animate-rise text-[15px] leading-relaxed font-medium whitespace-pre-line break-words text-ink motion-reduce:animate-none">
+          {user.bio}
+        </p>
+      )}
+
       {user.telegramHandle ? (
         <a
           href={`https://t.me/${user.telegramHandle}`}

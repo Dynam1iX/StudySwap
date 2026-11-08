@@ -162,7 +162,11 @@ export function StudentPage() {
         {author && (state.status === 'ready' || state.status === 'loading') && (
           // Same grid as your own Profile: student and subjects on the left, cards on the right.
           <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[372px_minmax(0,1fr)] lg:grid-rows-[repeat(3,auto)_1fr] lg:gap-x-6">
-            <StudentHeaderCard author={author} contact={state.status === 'ready' ? state.data.contact : undefined} />
+            <StudentHeaderCard
+              author={author}
+              contact={state.status === 'ready' ? state.data.contact : undefined}
+              bio={state.status === 'ready' ? state.data.bio : undefined}
+            />
 
             {state.status === 'loading' ? (
               <div aria-hidden className="flex flex-col gap-4">

@@ -35,8 +35,24 @@ function friendly(error: { message?: string; status?: number } | null): Error {
   return new Error(message || t.generic);
 }
 
-/** E-mails a one-time code; creates the account on the first sign-in. */
+/**
+ * Test accounts for graders (README): these addresses sign in with a fixed code checked by
+ * /api/test-login instead of an e-mailed one. Empty unless NEXT_PUBLIC_TEST_LOGIN_EMAILS is set.
+ */
+const TEST_EMAILS = new Set(
+  (process.env.NEXT_PUBLIC_TEST_LOGIN_EMAILS ?? '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+export function isTestEmail(email: string): boolean {
+  return TEST_EMAILS.has(email.trim().toLowerCase());
+}
+
+/** E-mails a one-time code; creates the account on the first sign-in. Test accounts get no e-mail. */
 export async function sendCode(email: string): Promise<void> {
+  if (isTestEmail(email)) return;
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
     options: { shouldCreateUser: true },
@@ -46,7 +62,26 @@ export async function sendCode(email: string): Promise<void> {
 
 /** Checks the code and signs the student in (the session is kept by supabase-js). */
 export async function verifyCode(email: string, code: string): Promise<void> {
+  if (isTestEmail(email)) return verifyTestCode(email, code);
   const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code, type: 'email' });
+  if (error) throw friendly(error);
+}
+
+/** Test account: the server checks the fixed code and returns a one-time sign-in token. */
+async function verifyTestCode(email: string, code: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch('/api/test-login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), code }),
+    });
+  } catch {
+    throw friendly({ message: 'network' });
+  }
+  const body = (await response.json().catch(() => null)) as { tokenHash?: string } | null;
+  if (!response.ok || !body?.tokenHash) throw friendly({ message: response.status === 401 ? 'invalid' : '' });
+  const { error } = await supabase.auth.verifyOtp({ token_hash: body.tokenHash, type: 'magiclink' });
   if (error) throw friendly(error);
 }
 

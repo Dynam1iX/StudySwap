@@ -9,7 +9,7 @@ import { Avatar } from '@/components/profile/Avatar';
 import { TelegramLinkSheet } from '@/components/profile/TelegramLinkSheet';
 import { TelegramUnlinkSheet } from '@/components/profile/TelegramUnlinkSheet';
 import { AvatarSheet } from '@/components/profile/AvatarSheet';
-import { SectionTitle, StudentDetails, TelegramSection } from '@/components/profile/EditProfileParts';
+import { BioSection, SectionTitle, StudentDetails, TelegramSection } from '@/components/profile/EditProfileParts';
 import { useAvatarEditor } from '@/components/profile/useAvatarEditor';
 import { Toast, useToast } from '@/components/ui/Toast';
 import { fetchProfile, type ProfileUser } from '@/lib/profile';
@@ -20,7 +20,7 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'ready'; user: ProfileUser };
 
-/** Profile settings: Telegram link and the student's details (read-only, from Microsoft). */
+/** Profile settings: About me, Telegram link and the student's details (read-only, from Microsoft). */
 export default function EditProfilePage() {
   const t = useT();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
@@ -98,6 +98,18 @@ export default function EditProfilePage() {
                 onEdit={() => avatar.setOpen(true)}
               />
             </div>
+
+            <section style={{ animationDelay: '90ms' }} className="flex animate-rise flex-col gap-3 motion-reduce:animate-none">
+              <SectionTitle>{t.edit.bio}</SectionTitle>
+              <BioSection
+                bio={state.user.bio}
+                onSaved={(bio) => {
+                  setState((prev) => (prev.status === 'ready' ? { status: 'ready', user: { ...prev.user, bio } } : prev));
+                  showToast(t.edit.bioSaved);
+                }}
+                onError={showToast}
+              />
+            </section>
 
             <section style={{ animationDelay: '120ms' }} className="flex animate-rise flex-col gap-3 motion-reduce:animate-none">
               <SectionTitle>Telegram</SectionTitle>
