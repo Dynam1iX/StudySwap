@@ -285,6 +285,13 @@ export default function ProfilePage() {
             onEditAvatar={() => avatar.setOpen(true)}
             onLinkTelegram={() => setLinkingTelegram(true)}
             onUnlinkTelegram={() => setUnlinkingTelegram(true)}
+            onBioSaved={(bio) => {
+              setState((prev) =>
+                prev.status === 'ready' ? { status: 'ready', data: { ...prev.data, user: { ...prev.data.user, bio } } } : prev,
+              );
+              showToast(t.edit.bioSaved);
+            }}
+            onBioError={showToast}
           />
           <TelegramUnlinkSheet
             open={unlinkingTelegram}

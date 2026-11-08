@@ -4,6 +4,21 @@ Peer-to-peer academic barter platform for AITU students: a student offers help w
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (PostgreSQL) · Vercel
 
+**Live:** https://studyswap-phi.vercel.app
+
+## Test accounts
+
+Sign-in normally sends a one-time code to the university mailbox. For grading, these two accounts sign in with a **fixed code** instead (no e-mail is sent):
+
+| Role | E-mail | Code |
+| --- | --- | --- |
+| Student | `999999@astanait.edu.kz` | `246810` |
+| Teacher | `test.teacher@astanait.edu.kz` | `246810` |
+
+On the login page type the e-mail, press **Continue**, then enter the code. The first sign-in of the student account asks to complete the profile (name, program, year); the teacher's name is taken from the e-mail.
+
+**Administrator:** not published here, because an administrator can delete any card in the live system. The team signs in as an administrator during the defense, or gives the instructor admin rights on request (`update public.users set role = 'admin' where email = '…';`).
+
 ## Getting started
 
 ```bash
@@ -28,6 +43,8 @@ npm run dev                  # http://localhost:3000
 | `GEMINI_API_KEY` | Server only | AI check of new and edited cards (Google AI Studio). Missing or failing: cards wait for a moderator |
 | `GEMINI_MODEL` | Server only, optional | Another Gemini model; default `gemini-3.8-flash` |
 | `GEMINI_FALLBACK_MODEL` | Server only, optional | Asked once when the main model answers 503 (overloaded) or 429 (limit); default `gemini-3.5-flash-lite` |
+| `NEXT_PUBLIC_TEST_LOGIN_EMAILS` | Browser + server, optional | Comma-separated test accounts that sign in with a fixed code (see Test accounts) |
+| `TEST_LOGIN_CODE` | Server only, optional | The fixed code for those accounts. Remove either variable to turn test sign-in off |
 
 ### AI check of cards
 

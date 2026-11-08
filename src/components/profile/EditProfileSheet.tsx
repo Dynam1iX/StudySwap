@@ -4,7 +4,7 @@ import { useId } from 'react';
 import { X } from 'lucide-react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Avatar } from './Avatar';
-import { SectionTitle, StudentDetails, TelegramSection } from './EditProfileParts';
+import { BioSection, SectionTitle, StudentDetails, TelegramSection } from './EditProfileParts';
 import type { ProfileUser } from '@/lib/profile';
 import { useT } from '@/i18n';
 
@@ -17,6 +17,8 @@ interface EditProfileSheetProps {
   onEditAvatar: () => void;
   onLinkTelegram: () => void;
   onUnlinkTelegram: () => void;
+  onBioSaved: (bio: string) => void;
+  onBioError: (message: string) => void;
 }
 
 /** Desktop "Edit profile": the same content as the /profile/edit page, in a modal over Profile. */
@@ -29,6 +31,8 @@ export function EditProfileSheet({
   onEditAvatar,
   onLinkTelegram,
   onUnlinkTelegram,
+  onBioSaved,
+  onBioError,
 }: EditProfileSheetProps) {
   const t = useT();
   const titleId = useId();
@@ -58,6 +62,11 @@ export function EditProfileSheet({
         <div className="flex justify-center">
           <Avatar initials={user.initials} url={avatarUrl} busy={avatarBusy} onEdit={onEditAvatar} />
         </div>
+        <section className="flex flex-col gap-3">
+          <SectionTitle>{t.edit.bio}</SectionTitle>
+          {/* Re-mounted when the modal opens, so the field starts from the saved bio. */}
+          {open && <BioSection bio={user.bio} onSaved={onBioSaved} onError={onBioError} />}
+        </section>
         <section className="flex flex-col gap-3">
           <SectionTitle>Telegram</SectionTitle>
           <TelegramSection handle={user.telegramHandle} onLink={onLinkTelegram} onUnlink={onUnlinkTelegram} />

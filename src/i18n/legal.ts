@@ -93,7 +93,7 @@ const en: Record<LegalKind, LegalDoc> = {
         heading: '1. What we store',
         list: [
           'Account: your university e-mail and how you signed in (code by e-mail or Microsoft).',
-          'Profile: first and last name, educational program, year of study (or "Teacher"), degree; optionally a profile photo (saved as a small 256×256 picture) and your Telegram username with your Telegram account number, if you link the bot.',
+          'Profile: first and last name, educational program, year of study (or "Teacher"), degree; optionally a profile photo (saved as a small 256×256 picture), a short "About me" text (up to 200 characters) and your Telegram username with your Telegram account number, if you link the bot.',
           'Cards: subjects, topic texts, the contact method you chose, status and date; photos or PDFs of tasks attached to them.',
           'Likes and your 10 most recent searches.',
           'The time of each AI check (only the time, kept for one day) for the hourly limit.',
@@ -103,7 +103,7 @@ const en: Record<LegalKind, LegalDoc> = {
       {
         heading: '2. Who sees what',
         list: [
-          'Only people signed in with an @astanait.edu.kz account can see StudySwap. They see your name, program, year, photo and your active cards with their files; your Telegram username, if you linked it; and your university e-mail, if you have an active card.',
+          'Only people signed in with an @astanait.edu.kz account can see StudySwap. They see your name, program, year, photo, "About me" text and your active cards with their files; your Telegram username, if you linked it; and your university e-mail, if you have an active card.',
           'A card link shared outside StudySwap shows only the subjects, the topics, your first name with the first letter of your last name, your program and year.',
           'Inactive cards, and cards waiting for a moderator, are visible only to you and to administrators.',
           'Administrators (the team) see all cards with the author\'s name and e-mail, to moderate them.',
@@ -213,7 +213,7 @@ const ru: Record<LegalKind, LegalDoc> = {
         heading: '1. Что мы храним',
         list: [
           'Аккаунт: университетская почта и способ входа (код на почту или Microsoft).',
-          'Профиль: имя и фамилия, образовательная программа, курс (или «Преподаватель»), уровень обучения; по желанию — фото профиля (сохраняется маленьким, 256×256) и имя пользователя Telegram с номером аккаунта Telegram, если вы подключили бота.',
+          'Профиль: имя и фамилия, образовательная программа, курс (или «Преподаватель»), уровень обучения; по желанию — фото профиля (сохраняется маленьким, 256×256), короткий текст «О себе» (до 200 символов) и имя пользователя Telegram с номером аккаунта Telegram, если вы подключили бота.',
           'Карточки: предметы, тексты тем, выбранный способ связи, статус и дата; прикреплённые фото и PDF заданий.',
           'Лайки и 10 последних поисков.',
           'Время каждой ИИ-проверки (только время, хранится сутки) — для лимита в час.',
@@ -223,7 +223,7 @@ const ru: Record<LegalKind, LegalDoc> = {
       {
         heading: '2. Кто что видит',
         list: [
-          'StudySwap видят только те, кто вошёл с почтой @astanait.edu.kz. Они видят ваше имя, программу, курс, фото и активные карточки с файлами; имя пользователя Telegram, если вы его подключили; университетскую почту, если у вас есть активная карточка.',
+          'StudySwap видят только те, кто вошёл с почтой @astanait.edu.kz. Они видят ваше имя, программу, курс, фото, текст «О себе» и активные карточки с файлами; имя пользователя Telegram, если вы его подключили; университетскую почту, если у вас есть активная карточка.',
           'Ссылка на карточку, отправленная вне StudySwap, показывает только предметы, темы, ваше имя с первой буквой фамилии, программу и курс.',
           'Неактивные карточки и карточки, ожидающие модератора, видите только вы и администраторы.',
           'Администраторы (команда) видят все карточки с именем и почтой автора — для модерации.',
@@ -333,7 +333,7 @@ const kz: Record<LegalKind, LegalDoc> = {
         heading: '1. Біз не сақтаймыз',
         list: [
           'Аккаунт: университет поштасы және кіру тәсілі (поштаға келген код немесе Microsoft).',
-          'Профиль: аты-жөні, білім беру бағдарламасы, курс (немесе «Оқытушы»), оқу деңгейі; қаласаңыз — профиль фотосы (кішкентай, 256×256 болып сақталады) және ботты қоссаңыз, Telegram пайдаланушы аты мен Telegram аккаунтының нөмірі.',
+          'Профиль: аты-жөні, білім беру бағдарламасы, курс (немесе «Оқытушы»), оқу деңгейі; қаласаңыз — профиль фотосы (кішкентай, 256×256 болып сақталады), қысқа «Өзім туралы» мәтіні (200 таңбаға дейін) және ботты қоссаңыз, Telegram пайдаланушы аты мен Telegram аккаунтының нөмірі.',
           'Карточкалар: пәндер, тақырып мәтіндері, таңдалған байланыс тәсілі, күйі мен күні; тіркелген тапсырма фотолары мен PDF-тері.',
           'Лайктар және соңғы 10 іздеу.',
           'Әр ЖИ тексеруінің уақыты (тек уақыты, бір тәулік сақталады) — сағаттық лимит үшін.',
@@ -343,7 +343,7 @@ const kz: Record<LegalKind, LegalDoc> = {
       {
         heading: '2. Кім нені көреді',
         list: [
-          'StudySwap-ты тек @astanait.edu.kz поштасымен кіргендер көреді. Олар сіздің атыңызды, бағдарламаңызды, курсыңызды, фотоңызды және файлдарымен бірге белсенді карточкаларыңызды; Telegram-ды қоссаңыз, Telegram пайдаланушы атыңызды; белсенді карточкаңыз болса, университет поштаңызды көреді.',
+          'StudySwap-ты тек @astanait.edu.kz поштасымен кіргендер көреді. Олар сіздің атыңызды, бағдарламаңызды, курсыңызды, фотоңызды, «Өзім туралы» мәтініңізді және файлдарымен бірге белсенді карточкаларыңызды; Telegram-ды қоссаңыз, Telegram пайдаланушы атыңызды; белсенді карточкаңыз болса, университет поштаңызды көреді.',
           'StudySwap-тан тыс жіберілген карточка сілтемесі тек пәндерді, тақырыптарды, атыңызды тегіңіздің бірінші әрпімен, бағдарламаңыз бен курсыңызды көрсетеді.',
           'Белсенді емес карточкаларды және модераторды күтіп тұрған карточкаларды тек сіз бен әкімшілер көресіз.',
           'Әкімшілер (команда) модерация үшін барлық карточкаларды авторының аты мен поштасымен көреді.',

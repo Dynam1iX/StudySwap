@@ -13,6 +13,8 @@ interface StudentHeaderCardProps {
   author: FeedAuthor;
   /** undefined while loading; null when the student has no contact to show. */
   contact: PostContact | null | undefined;
+  /** "About me"; empty or undefined while loading = not shown. */
+  bio?: string;
 }
 
 function contactHref(contact: PostContact, name: string): string {
@@ -23,7 +25,7 @@ function contactHref(contact: PostContact, name: string): string {
 }
 
 /** Photo, name, major and year, and how to reach the student. */
-export function StudentHeaderCard({ author, contact }: StudentHeaderCardProps) {
+export function StudentHeaderCard({ author, contact, bio }: StudentHeaderCardProps) {
   const t = useT();
   const name = author.full_name || 'AITU Student';
   const initials = getInitials(name);
@@ -70,6 +72,12 @@ export function StudentHeaderCard({ author, contact }: StudentHeaderCardProps) {
           <p className="text-sm font-medium text-muted">{formatStudyInfo(t, author.major, author.study_year)}</p>
         </div>
       </div>
+
+      {bio && (
+        <p className="animate-rise text-[15px] leading-relaxed font-medium whitespace-pre-line break-words text-ink motion-reduce:animate-none">
+          {bio}
+        </p>
+      )}
 
       {contact === undefined ? (
         <div aria-hidden className="h-12 animate-pulse rounded-2xl bg-soft" />

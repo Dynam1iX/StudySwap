@@ -437,6 +437,13 @@ export const en = {
     degree: 'Degree',
     email: 'University e-mail',
     readOnlyNote: 'These were set when you joined StudySwap and cannot be changed here.',
+    bio: 'About me',
+    bioPlaceholder: 'What do you want to learn, and what can you help with?',
+    bioHint: 'Shown on your profile to other students.',
+    bioSave: 'Save',
+    bioSaving: 'Saving…',
+    bioSaved: 'Bio saved',
+    bioError: 'Could not save the bio. Try again.',
   },
 
   login: {
